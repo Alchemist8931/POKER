@@ -65,11 +65,11 @@
       width: 100%;
       max-width: 420px;
       margin: 16px;
-      transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-      transform: scale(0.95) translateY(20px);
+      transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1); /* Анимация ширины */
+      transform: scale(0.95);
       border: 1px solid var(--border-color);
     }
-    .auth-overlay.visible .auth-modal { transform: scale(1) translateY(0); }
+    .auth-overlay.visible .auth-modal { transform: scale(1); }
     .auth-modal.is-register { max-width: 480px; }
 
     .modal-header { padding: 24px 24px 0; position: relative; }
@@ -84,69 +84,66 @@
 
     .modal-body { padding: 24px; padding-top: 32px; }
     
-    .forms-wrapper { position: relative; width: 100%; }
-    
-    /* --- ИСПРАВЛЕННАЯ АНИМАЦИЯ ФОРМ --- */
+    /* === ИСПРАВЛЕННАЯ АНИМАЦИЯ ФОРМ === */
+    .forms-wrapper {
+      position: relative;
+      width: 100%;
+      /* Высота подстраивается под контент, но для анимации мы используем абсолютное позиционирование внутри */
+    }
+
     .auth-form {
       display: flex;
       flex-direction: column;
       gap: 16px;
       width: 100%;
+      /* Обе формы абсолютны, чтобы накладываться друг на друга */
+      position: absolute;
+      top: 0;
+      left: 0;
+      transition: opacity 0.35s ease, transform 0.35s ease, visibility 0s linear;
     }
 
-    /* Логика переходов:
-       1. opacity и transform всегда анимируются 0.4с
-       2. visibility: 
-          - При появлении (visible) меняется мгновенно (0s delay)
-          - При исчезновении (hidden) меняется с задержкой 0.4s (после завершения анимации)
-    */
-    
-    /* Login Form States */
+    /* Login Form Default State */
     .login-form {
-      position: relative;
-      opacity: 1;
-      visibility: visible;
-      transform: translateX(0);
-      z-index: 2;
-      transition: opacity 0.4s ease, transform 0.4s ease, visibility 0s linear 0s;
-    }
-
-    /* Register Form States */
-    .register-form {
-      position: absolute;
-      top: 0;
-      left: 0;
-      opacity: 0;
-      visibility: hidden;
-      transform: translateX(30px);
-      z-index: 1;
-      pointer-events: none;
-      transition: opacity 0.4s ease, transform 0.4s ease, visibility 0s linear 0.4s;
-    }
-
-    /* ACTIVE STATE (Register Mode) */
-    .auth-modal.is-register .login-form {
-      position: absolute;
-      top: 0;
-      left: 0;
-      opacity: 0;
-      visibility: hidden;
-      transform: translateX(-30px);
-      z-index: 1;
-      pointer-events: none;
-      /* Delay visibility change to keep element visible during fade-out */
-      transition: opacity 0.4s ease, transform 0.4s ease, visibility 0s linear 0.4s;
-    }
-
-    .auth-modal.is-register .register-form {
-      position: relative;
+      position: relative; /* Relative чтобы занимать место в потоке и растягивать wrapper */
       opacity: 1;
       visibility: visible;
       transform: translateX(0);
       z-index: 2;
       pointer-events: auto;
-      /* Instant visibility to start fade-in */
-      transition: opacity 0.4s ease, transform 0.4s ease, visibility 0s linear 0s;
+    }
+
+    /* Register Form Default State */
+    .register-form {
+      /* Absolute чтобы не влиять на высоту, пока скрыт */
+      position: absolute; 
+      opacity: 0;
+      visibility: hidden; /* Скрыт по умолчанию */
+      transform: translateX(40px);
+      z-index: 1;
+      pointer-events: none;
+      transition-delay: 0s, 0s, 0.35s; /* Visibility задержка при скрытии */
+    }
+
+    /* ACTIVE STATE (Register Mode) */
+    .auth-modal.is-register .login-form {
+      position: absolute; /* Убираем из потока */
+      opacity: 0;
+      visibility: hidden;
+      transform: translateX(-40px);
+      z-index: 1;
+      pointer-events: none;
+      transition-delay: 0s, 0s, 0.35s; /* Visibility задержка при скрытии */
+    }
+
+    .auth-modal.is-register .register-form {
+      position: relative; /* Возвращаем в поток для высоты */
+      opacity: 1;
+      visibility: visible;
+      transform: translateX(0);
+      z-index: 2;
+      pointer-events: auto;
+      transition-delay: 0s; /* Без задержки при появлении */
     }
     
     /* Register form grid */
@@ -238,6 +235,17 @@
     .banner.error { background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.3); color: #f87171; }
     .banner svg { flex-shrink: 0; }
 
+    /* Versioning */
+    .app-version {
+      position: absolute;
+      bottom: 8px;
+      right: 16px;
+      font-size: 10px;
+      color: var(--text-muted);
+      opacity: 0.5;
+      pointer-events: none;
+    }
+
     /* --- App Layout --- */
     .app-container {
       display: none;
@@ -318,6 +326,7 @@
       justify-content: center;
       padding: 16px 24px;
       z-index: 10;
+      position: relative;
     }
 
     /* Radio Inputs Style */
@@ -471,6 +480,7 @@
           </form>
         </div>
       </div>
+      <div class="app-version" id="versionDisplay">v 1.01</div>
     </div>
   </div>
 
@@ -509,20 +519,25 @@
           <span class="name">Тех поддержка</span>
         </label>
       </div>
+      <div class="app-version" id="versionDisplayFooter">v 1.01</div>
     </footer>
   </div>
 
   <script>
     // ==========================================
-    // CONFIGURATION
+    // CONFIGURATION & VERSION
     // ==========================================
+    const APP_VERSION = "v 1.01";
     const SUPABASE_URL = "https://ncdwlmgwljjwpuawlssr.supabase.co";
     const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5jZHdsbWd3bGpqd3B1YXdsc3NyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njc0NTQxNDksImV4cCI6MjA4MzAzMDE0OX0.rrIznUflWydylTnUZvOxOkeF9eMp91qNN4Bjq2gXRL8";
     
+    // Update Version Displays on load
+    document.getElementById('versionDisplay').innerText = APP_VERSION;
+    document.getElementById('versionDisplayFooter').innerText = APP_VERSION;
+
     let supabase = null;
     let currentUser = null;
 
-    // Initialize Supabase
     if (SUPABASE_URL && SUPABASE_ANON_KEY) {
       supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     } else {
