@@ -42,12 +42,10 @@
       -webkit-tap-highlight-color: transparent;
     }
 
-    /* Scrollbar */
     ::-webkit-scrollbar { width: 4px; }
     ::-webkit-scrollbar-track { background: var(--bg-secondary); }
     ::-webkit-scrollbar-thumb { background: var(--border-light); border-radius: 2px; }
 
-    /* Background Effects */
     .bg-pattern {
       position: fixed; inset: 0;
       background: 
@@ -64,7 +62,7 @@
     }
 
     /* ==========================================
-       AUTH SECTION - Без overlay
+       AUTH SECTION
     ========================================== */
     .auth-section {
       position: fixed;
@@ -96,7 +94,6 @@
       align-items: center;
     }
 
-    /* Logo / Brand */
     .auth-brand {
       margin-bottom: 32px;
       text-align: center;
@@ -132,7 +129,6 @@
       color: var(--text-muted);
     }
 
-    /* Auth Card - Фиксированная ширина */
     .auth-card {
       width: 100%;
       background: var(--bg-card);
@@ -156,7 +152,6 @@
       position: relative; 
     }
 
-    /* Tabs */
     .tab-container { 
       position: relative; 
       display: flex; 
@@ -271,7 +266,6 @@
       pointer-events: auto; 
     }
 
-    /* Inputs */
     .input-container { 
       position: relative; 
       width: 100%; 
@@ -322,7 +316,6 @@
       color: var(--accent); 
     }
 
-    /* Submit Button */
     .submit-btn { 
       width: 100%; 
       padding: 16px 24px; 
@@ -369,7 +362,6 @@
     
     @keyframes spin { to { transform: translate(-50%, -50%) rotate(360deg); } }
 
-    /* Banners */
     .banner { 
       padding: 0 16px; 
       margin: 0; 
@@ -413,7 +405,7 @@
     .banner svg { flex-shrink: 0; margin-top: 2px; }
 
     /* ==========================================
-       APP LAYOUT - MOBILE ONLY
+       APP LAYOUT
     ========================================== */
     .app-container { 
       display: none; 
@@ -424,7 +416,6 @@
     
     .app-container.visible { display: flex; }
 
-    /* Header - Fixed 100px */
     .app-header {
       position: fixed;
       top: 0;
@@ -497,7 +488,6 @@
       color: var(--error);
     }
 
-    /* Body - Flexible */
     .app-body {
       flex: 1;
       margin-top: 100px;
@@ -546,7 +536,6 @@
       font-weight: 500;
     }
 
-    /* Menu - Fixed 200px */
     .app-menu {
       position: fixed;
       bottom: 0;
@@ -564,7 +553,6 @@
       padding: 20px;
     }
 
-    /* Radio Menu */
     .radio-inputs {
       position: relative;
       display: flex;
@@ -636,7 +624,6 @@
       letter-spacing: 0.3px;
     }
 
-    /* Responsive */
     @media (max-width: 360px) {
       .auth-card { border-radius: 20px; }
       .brand-title { font-size: 20px; }
@@ -697,7 +684,7 @@
             <!-- Login Form -->
             <form class="auth-form login-form" id="loginForm" autocomplete="on">
               <div class="input-container">
-                <input type="text" class="styled_input_bar" id="loginUsername" name="username" placeholder=" " autocomplete="username" />
+                <input type="text" class="styled_input_bar" id="loginUsername" name="username" placeholder=" " autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" />
                 <label class="input-label" for="loginUsername">Никнейм</label>
               </div>
               <div class="input-container">
@@ -736,7 +723,7 @@
                 <label class="input-label" for="regEmail">Почтовый ящик</label>
               </div>
               <div class="input-container">
-                <input type="text" class="styled_input_bar" id="regNickname" name="username" placeholder=" " autocomplete="username" />
+                <input type="text" class="styled_input_bar" id="regNickname" name="username" placeholder=" " autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" />
                 <label class="input-label" for="regNickname">Никнейм (логин)</label>
               </div>
               <div class="input-container">
@@ -826,9 +813,23 @@
     if (SUPABASE_URL && SUPABASE_ANON_KEY) {
       try {
         supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        console.log("Supabase initialized successfully");
       } catch(e) {
         console.error("Ошибка инициализации Supabase:", e);
       }
+    }
+
+    // ==========================================
+    // HELPER: Clean string
+    // ==========================================
+    function cleanString(str) {
+      if (!str) return '';
+      // Remove invisible characters, trim, normalize
+      return str
+        .toString()
+        .normalize('NFKC') // Normalize unicode
+        .replace(/[\u200B-\u200D\uFEFF\u00A0]/g, '') // Remove zero-width spaces and non-breaking spaces
+        .trim();
     }
 
     // ==========================================
@@ -913,9 +914,18 @@
     // ==========================================
     async function handleLogin(e) {
       e.preventDefault();
-      const nickname = document.getElementById('loginUsername').value.trim();
-      const password = document.getElementById('loginPassword').value;
+      
+      // Clean inputs thoroughly
+      const rawNickname = document.getElementById('loginUsername').value;
+      const rawPassword = document.getElementById('loginPassword').value;
+      
+      const nickname = cleanString(rawNickname);
+      const password = cleanString(rawPassword);
+      
       const loginBtn = document.getElementById('loginBtn');
+      
+      console.log("Login attempt - nickname:", nickname, "length:", nickname.length);
+      console.log("Login attempt - password length:", password.length);
       
       if (!nickname || !password) {
         showLoginBanner('Заполните все поля', 'warning');
@@ -927,55 +937,76 @@
       hideLoginBanner();
       
       try {
-        const { data, error } = await supabaseClient
+        // Check if supabase is initialized
+        if (!supabaseClient) {
+          showLoginBanner('Ошибка: Supabase не инициализирован', 'error');
+          loginBtn.classList.remove('loading');
+          loginBtn.disabled = false;
+          return;
+        }
+
+        // Use .eq() for exact match - this is more reliable than .ilike()
+        const { data, error, status } = await supabaseClient
           .from('poker_users')
           .select('*')
-          .ilike('nickname', nickname)
-          .maybeSingle();
+          .eq('nickname', nickname)
+          .limit(1);
+        
+        console.log("Supabase response - status:", status);
+        console.log("Supabase response - error:", error);
+        console.log("Supabase response - data:", data);
         
         if (error) {
-          showLoginBanner('Ошибка соединения с базой данных', 'error');
+          console.error("Supabase error:", error);
+          showLoginBanner('Ошибка соединения: ' + error.message, 'error');
           loginBtn.classList.remove('loading');
           loginBtn.disabled = false;
           return;
         }
         
-        if (!data) {
+        if (!data || data.length === 0) {
           showLoginBanner('Пользователь не найден', 'warning');
           loginBtn.classList.remove('loading');
           loginBtn.disabled = false;
           return;
         }
         
-        if (data.password !== password) {
+        const user = data[0];
+        console.log("Found user:", user.nickname, "status:", user.status);
+        
+        if (user.password !== password) {
           showLoginBanner('Неверный пароль', 'warning');
           loginBtn.classList.remove('loading');
           loginBtn.disabled = false;
           return;
         }
         
-        if (data.status === 'created') {
+        if (user.status === 'created') {
           showLoginBanner('Свяжитесь пожалуйста с организатором для подтверждения вашей учетной записи', 'warning');
           loginBtn.classList.remove('loading');
           loginBtn.disabled = false;
           return;
         }
         
-        if (data.status === 'blocked') {
+        if (user.status === 'blocked') {
           showLoginBanner('Свяжитесь пожалуйста с организатором ваша учетная запись заблокирована', 'error');
           loginBtn.classList.remove('loading');
           loginBtn.disabled = false;
           return;
         }
         
-        if (data.status === 'confirmed') {
-          currentUser = data;
+        if (user.status === 'confirmed') {
+          currentUser = user;
           
           // Update last_login
-          await supabaseClient
-            .from('poker_users')
-            .update({ last_login: new Date().toISOString() })
-            .eq('id', data.id);
+          try {
+            await supabaseClient
+              .from('poker_users')
+              .update({ last_login: new Date().toISOString() })
+              .eq('id', user.id);
+          } catch (updateErr) {
+            console.error("Failed to update last_login:", updateErr);
+          }
           
           // Save credentials for autocomplete
           localStorage.setItem('poker_saved_nickname', nickname);
@@ -987,13 +1018,13 @@
           
           showApp();
         } else {
-          showLoginBanner('Неизвестный статус учетной записи', 'error');
+          showLoginBanner('Неизвестный статус учетной записи: ' + user.status, 'error');
           loginBtn.classList.remove('loading');
           loginBtn.disabled = false;
         }
         
       } catch (err) {
-        console.error("Login error:", err);
+        console.error("Login exception:", err);
         showLoginBanner('Критическая ошибка: ' + err.message, 'error');
         loginBtn.classList.remove('loading');
         loginBtn.disabled = false;
@@ -1006,19 +1037,25 @@
     async function handleRegister(e) {
       e.preventDefault();
       
-      const lastName = document.getElementById('regLastName').value.trim();
-      const firstName = document.getElementById('regFirstName').value.trim();
-      const middleName = document.getElementById('regMiddleName').value.trim();
-      const phone = document.getElementById('regPhone').value.trim();
-      const email = document.getElementById('regEmail').value.trim();
-      const nickname = document.getElementById('regNickname').value.trim();
-      const password = document.getElementById('regPassword').value;
+      // Clean all inputs
+      const lastName = cleanString(document.getElementById('regLastName').value);
+      const firstName = cleanString(document.getElementById('regFirstName').value);
+      const middleName = cleanString(document.getElementById('regMiddleName').value);
+      const phone = cleanString(document.getElementById('regPhone').value);
+      const email = cleanString(document.getElementById('regEmail').value);
+      const nickname = cleanString(document.getElementById('regNickname').value);
+      const password = cleanString(document.getElementById('regPassword').value);
       
       const registerBtn = document.getElementById('registerBtn');
       
       // Validation
       if (!lastName || !firstName || !middleName || !phone || !email || !nickname || !password) {
         showRegisterBanner('Заполните все поля', 'warning');
+        return;
+      }
+      
+      if (nickname.length < 2) {
+        showRegisterBanner('Никнейм должен быть не менее 2 символов', 'warning');
         return;
       }
       
@@ -1032,7 +1069,7 @@
       hideRegisterBanner();
       
       try {
-        const { error } = await supabaseClient
+        const { data, error } = await supabaseClient
           .from('poker_users')
           .insert([{
             last_name: lastName,
@@ -1044,7 +1081,11 @@
             password: password,
             status: 'created',
             created_at: new Date().toISOString()
-          }]);
+          }])
+          .select();
+        
+        console.log("Register response - data:", data);
+        console.log("Register response - error:", error);
         
         if (error) {
           if (error.code === '23505') {
@@ -1067,10 +1108,12 @@
           hideRegisterBanner();
           tabLogin.checked = true;
           authCard.classList.remove('is-register');
+          // Pre-fill login form with registered nickname
+          document.getElementById('loginUsername').value = nickname;
         }, 3000);
         
       } catch (err) {
-        console.error("Register error:", err);
+        console.error("Register exception:", err);
         showRegisterBanner('Критическая ошибка: ' + err.message, 'error');
         registerBtn.classList.remove('loading');
         registerBtn.disabled = false;
@@ -1183,7 +1226,9 @@
       const savedPassword = localStorage.getItem('poker_saved_password');
       const autoLogin = localStorage.getItem('poker_auto_login');
       
-      if (autoLogin === 'true' && savedNickname && savedPassword) {
+      console.log("Auto-login check - has saved credentials:", !!savedNickname);
+      
+      if (autoLogin === 'true' && savedNickname && savedPassword && supabaseClient) {
         // Fill the form for autocomplete visual
         document.getElementById('loginUsername').value = savedNickname;
         document.getElementById('loginPassword').value = savedPassword;
@@ -1193,19 +1238,28 @@
           const { data, error } = await supabaseClient
             .from('poker_users')
             .select('*')
-            .ilike('nickname', savedNickname)
-            .maybeSingle();
+            .eq('nickname', savedNickname)
+            .limit(1);
           
-          if (data && data.password === savedPassword && data.status === 'confirmed') {
-            currentUser = data;
-            
-            // Update last_login
-            await supabaseClient
-              .from('poker_users')
-              .update({ last_login: new Date().toISOString() })
-              .eq('id', data.id);
-            
-            showApp();
+          console.log("Auto-login response:", data, error);
+          
+          if (data && data.length > 0) {
+            const user = data[0];
+            if (user.password === savedPassword && user.status === 'confirmed') {
+              currentUser = user;
+              
+              // Update last_login
+              try {
+                await supabaseClient
+                  .from('poker_users')
+                  .update({ last_login: new Date().toISOString() })
+                  .eq('id', user.id);
+              } catch (e) {
+                console.error("Failed to update last_login:", e);
+              }
+              
+              showApp();
+            }
           }
         } catch (err) {
           console.error("Auto-login error:", err);
@@ -1224,6 +1278,7 @@
     // INITIALIZATION
     // ==========================================
     document.addEventListener('DOMContentLoaded', () => {
+      console.log("DOM loaded, checking auto-login...");
       checkAutoLogin();
     });
   </script>
