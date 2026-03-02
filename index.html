@@ -15,6 +15,17 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <link href="https://fonts.googleapis.com/css2?family=SN+Pro:ital,wght@0,200..900;1,200..900&display=swap" rel="stylesheet">
+  
+  <!-- Three.js Import Map -->
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+    }
+  }
+  </script>
+  
   <style>
     :root {
       --bg-primary: #121212;
@@ -64,6 +75,102 @@
       opacity: 0.02;
       background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
       pointer-events: none; z-index: 1;
+    }
+
+    /* DB CONNECTION OVERLAY STYLES */
+    .db-connection-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      pointer-events: none;
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 0.5s ease, visibility 0s linear 0.5s;
+    }
+
+    .db-connection-overlay.visible {
+      opacity: 1;
+      visibility: visible;
+      pointer-events: auto;
+      transition: opacity 0.5s ease, visibility 0s linear 0s;
+    }
+
+    .db-connection-overlay::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: rgba(12, 12, 12, 0.85);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+    }
+
+    .db-overlay-content {
+      position: relative;
+      z-index: 2;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      width: 100%;
+      max-width: 430px;
+      padding: 20px;
+    }
+
+    .db-canvas-container {
+      width: 100%;
+      height: 280px;
+      position: relative;
+    }
+
+    .db-canvas-container canvas {
+      display: block;
+    }
+
+    .db-message-container {
+      text-align: center;
+      padding: 0 20px;
+      margin-top: 10px;
+    }
+
+    .db-loading-text {
+      color: var(--text-secondary);
+      font-size: 14px;
+      font-weight: 500;
+      letter-spacing: 1px;
+      margin-bottom: 16px;
+      opacity: 0.8;
+    }
+
+    .db-dots {
+      display: inline-block;
+      width: 24px;
+      text-align: left;
+    }
+
+    .db-error-message {
+      color: var(--text-primary);
+      font-size: 13px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      padding: 14px 20px;
+      border-radius: 14px;
+      line-height: 1.6;
+      font-weight: 400;
+      max-width: 320px;
+    }
+
+    /* APP BLUR WHEN DB LOST */
+    .app-blur-wrapper {
+      transition: filter 0.5s ease, opacity 0.5s ease;
+    }
+
+    .app-blur-wrapper.blurred {
+      filter: blur(8px);
+      opacity: 0.4;
+      pointer-events: none;
     }
 
     /* AUTH SECTION */
@@ -166,14 +273,13 @@
       overflow-y: auto; position: relative; z-index: 10;
     }
     
-    /* Hide bottom margin if menu is hidden */
     .app-body.no-menu {
       margin-bottom: 20px;
     }
 
     .page-container {
       background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 20px;
-      min-height: calc(100% - 20px); padding: 15px; /* Reduced padding for cards layout */
+      min-height: calc(100% - 20px); padding: 15px;
       opacity: 0; transform: translateY(20px); transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
     }
     .page-container.visible { opacity: 1; transform: translateY(0); }
@@ -204,7 +310,6 @@
     .radio-inputs .radio:hover .name { background-color: var(--bg-elevated); }
     .menu-label { font-size: 11px; font-weight: 500; letter-spacing: 0.3px; }
 
-    /* GAME CARDS STYLES */
     .game-list-container { display: flex; flex-direction: column; gap: 15px; }
     
     .game-card {
@@ -265,7 +370,7 @@
 
     @media (min-width: 500px) {
       body { display: flex; justify-content: center; background: #000; }
-      .app-container, .auth-section { max-width: 430px; border-left: 1px solid var(--border-color); border-right: 1px solid var(--border-color); position: relative; }
+      .app-container, .auth-section, .db-connection-overlay { max-width: 430px; border-left: 1px solid var(--border-color); border-right: 1px solid var(--border-color); position: relative; }
     }
   </style>
 </head>
@@ -273,95 +378,113 @@
   <div class="bg-pattern"></div>
   <div class="noise-overlay"></div>
 
-  <!-- Auth Section -->
-  <section class="auth-section visible" id="authSection">
-    <div class="auth-container">
-      <div class="auth-brand">
-        <div class="brand-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"/><path d="M12 8v4l3 3"/></svg>
+  <!-- DB Connection Lost Overlay -->
+  <div class="db-connection-overlay" id="dbConnectionOverlay">
+    <div class="db-overlay-content">
+      <div class="db-canvas-container" id="dbCanvasContainer"></div>
+      <div class="db-message-container">
+        <div class="db-loading-text">
+          Восстановление соединения<span class="db-dots" id="dbDots"></span>
         </div>
-        <div class="brand-title">Poker Games</div>
-        <div class="brand-subtitle">Регистрация на мероприятия</div>
-      </div>
-
-      <div class="auth-card" id="authCard">
-        <div class="auth-card-header">
-          <div class="tab-container">
-            <input type="radio" name="authTab" id="tabLogin" class="tab tab--login" checked />
-            <label class="tab_label" for="tabLogin">Вход</label>
-            <input type="radio" name="authTab" id="tabRegister" class="tab tab--register" />
-            <label class="tab_label" for="tabRegister">Регистрация</label>
-            <div class="indicator"></div>
-          </div>
-        </div>
-        
-        <div class="auth-card-body">
-          <div class="forms-wrapper">
-            <form class="auth-form login-form" id="loginForm" autocomplete="on">
-              <div class="input-container">
-                <input type="text" class="styled_input_bar" id="loginUsername" name="username" placeholder=" " autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" />
-                <label class="input-label" for="loginUsername">Никнейм</label>
-              </div>
-              <div class="input-container">
-                <input type="password" class="styled_input_bar" id="loginPassword" name="password" placeholder=" " autocomplete="current-password" />
-                <label class="input-label" for="loginPassword">Пароль</label>
-              </div>
-              <div class="banner warning" id="loginBanner">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
-                <span id="loginBannerText">Ошибка входа.</span>
-              </div>
-              <button type="submit" class="submit-btn" id="loginBtn"><span class="btn-text">Войти</span><div class="loader"></div></button>
-            </form>
-            
-            <form class="auth-form register-form" id="registerForm" autocomplete="on">
-              <div class="input-container"><input type="text" class="styled_input_bar" id="regLastName" placeholder=" " /><label class="input-label" for="regLastName">Фамилия</label></div>
-              <div class="input-container"><input type="text" class="styled_input_bar" id="regFirstName" placeholder=" " /><label class="input-label" for="regFirstName">Имя</label></div>
-              <div class="input-container"><input type="text" class="styled_input_bar" id="regMiddleName" placeholder=" " /><label class="input-label" for="regMiddleName">Отчество</label></div>
-              <div class="input-container"><input type="tel" class="styled_input_bar" id="regPhone" placeholder=" " maxlength="18" /><label class="input-label" for="regPhone">Мобильный телефон</label></div>
-              <div class="input-container"><input type="email" class="styled_input_bar" id="regEmail" placeholder=" " autocomplete="email" /><label class="input-label" for="regEmail">Почтовый ящик</label></div>
-              <div class="input-container"><input type="text" class="styled_input_bar" id="regNickname" name="username" placeholder=" " autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" /><label class="input-label" for="regNickname">Никнейм (логин)</label></div>
-              <div class="input-container"><input type="password" class="styled_input_bar" id="regPassword" name="new-password" placeholder=" " autocomplete="new-password" /><label class="input-label" for="regPassword">Пароль</label></div>
-              
-              <div class="banner success" id="registerBanner">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
-                <span>Регистрация завершена. Ожидайте подтверждения.</span>
-              </div>
-              <button type="submit" class="submit-btn" id="registerBtn"><span class="btn-text">Зарегистрироваться</span><div class="loader"></div></button>
-            </form>
-          </div>
+        <div class="db-error-message">
+          Потеряно соединение с сервером. Пожалуйста, подождите...
         </div>
       </div>
     </div>
-    <div class="version-tag">v 1.08</div>
-  </section>
+  </div>
 
-  <!-- App Container -->
-  <div class="app-container" id="appContainer">
-    <header class="app-header">
-      <div class="header-left">
-        <h1 class="header-title" id="pageTitle">Мероприятия</h1>
-      </div>
-      <div class="header-right">
-        <span class="header-nickname" id="headerNickname">player</span>
-        <button class="logout-btn" id="logoutBtn" title="Выйти">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
-        </button>
-      </div>
-    </header>
+  <!-- App Blur Wrapper -->
+  <div class="app-blur-wrapper" id="appBlurWrapper">
+    <!-- Auth Section -->
+    <section class="auth-section visible" id="authSection">
+      <div class="auth-container">
+        <div class="auth-brand">
+          <div class="brand-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"/><path d="M12 8v4l3 3"/></svg>
+          </div>
+          <div class="brand-title">Poker Games</div>
+          <div class="brand-subtitle">Регистрация на мероприятия</div>
+        </div>
 
-    <main class="app-body" id="appBody">
-      <div class="page-container visible" id="pageContainer">
-        <div class="page-placeholder"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg><span>Загрузка...</span></div>
+        <div class="auth-card" id="authCard">
+          <div class="auth-card-header">
+            <div class="tab-container">
+              <input type="radio" name="authTab" id="tabLogin" class="tab tab--login" checked />
+              <label class="tab_label" for="tabLogin">Вход</label>
+              <input type="radio" name="authTab" id="tabRegister" class="tab tab--register" />
+              <label class="tab_label" for="tabRegister">Регистрация</label>
+              <div class="indicator"></div>
+            </div>
+          </div>
+          
+          <div class="auth-card-body">
+            <div class="forms-wrapper">
+              <form class="auth-form login-form" id="loginForm" autocomplete="on">
+                <div class="input-container">
+                  <input type="text" class="styled_input_bar" id="loginUsername" name="username" placeholder=" " autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" />
+                  <label class="input-label" for="loginUsername">Никнейм</label>
+                </div>
+                <div class="input-container">
+                  <input type="password" class="styled_input_bar" id="loginPassword" name="password" placeholder=" " autocomplete="current-password" />
+                  <label class="input-label" for="loginPassword">Пароль</label>
+                </div>
+                <div class="banner warning" id="loginBanner">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+                  <span id="loginBannerText">Ошибка входа.</span>
+                </div>
+                <button type="submit" class="submit-btn" id="loginBtn"><span class="btn-text">Войти</span><div class="loader"></div></button>
+              </form>
+              
+              <form class="auth-form register-form" id="registerForm" autocomplete="on">
+                <div class="input-container"><input type="text" class="styled_input_bar" id="regLastName" placeholder=" " /><label class="input-label" for="regLastName">Фамилия</label></div>
+                <div class="input-container"><input type="text" class="styled_input_bar" id="regFirstName" placeholder=" " /><label class="input-label" for="regFirstName">Имя</label></div>
+                <div class="input-container"><input type="text" class="styled_input_bar" id="regMiddleName" placeholder=" " /><label class="input-label" for="regMiddleName">Отчество</label></div>
+                <div class="input-container"><input type="tel" class="styled_input_bar" id="regPhone" placeholder=" " maxlength="18" /><label class="input-label" for="regPhone">Мобильный телефон</label></div>
+                <div class="input-container"><input type="email" class="styled_input_bar" id="regEmail" placeholder=" " autocomplete="email" /><label class="input-label" for="regEmail">Почтовый ящик</label></div>
+                <div class="input-container"><input type="text" class="styled_input_bar" id="regNickname" name="username" placeholder=" " autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" /><label class="input-label" for="regNickname">Никнейм (логин)</label></div>
+                <div class="input-container"><input type="password" class="styled_input_bar" id="regPassword" name="new-password" placeholder=" " autocomplete="new-password" /><label class="input-label" for="regPassword">Пароль</label></div>
+                
+                <div class="banner success" id="registerBanner">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+                  <span>Регистрация завершена. Ожидайте подтверждения.</span>
+                </div>
+                <button type="submit" class="submit-btn" id="registerBtn"><span class="btn-text">Зарегистрироваться</span><div class="loader"></div></button>
+              </form>
+            </div>
+          </div>
+        </div>
       </div>
-    </main>
+      <div class="version-tag">v 1.08</div>
+    </section>
 
-    <nav class="app-menu" id="appMenu">
-      <div class="radio-inputs">
-        <label class="radio"><input type="radio" name="appMenu" id="menuEvents" checked /><span class="name"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg></span></label>
-        <label class="radio"><input type="radio" name="appMenu" id="menuMyEvents" /><span class="name"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg></span></label>
-        <label class="radio"><input type="radio" name="appMenu" id="menuSupport" /><span class="name"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg></span></label>
-      </div>
-    </nav>
+    <!-- App Container -->
+    <div class="app-container" id="appContainer">
+      <header class="app-header">
+        <div class="header-left">
+          <h1 class="header-title" id="pageTitle">Мероприятия</h1>
+        </div>
+        <div class="header-right">
+          <span class="header-nickname" id="headerNickname">player</span>
+          <button class="logout-btn" id="logoutBtn" title="Выйти">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+          </button>
+        </div>
+      </header>
+
+      <main class="app-body" id="appBody">
+        <div class="page-container visible" id="pageContainer">
+          <div class="page-placeholder"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg><span>Загрузка...</span></div>
+        </div>
+      </main>
+
+      <nav class="app-menu" id="appMenu">
+        <div class="radio-inputs">
+          <label class="radio"><input type="radio" name="appMenu" id="menuEvents" checked /><span class="name"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg></span></label>
+          <label class="radio"><input type="radio" name="appMenu" id="menuMyEvents" /><span class="name"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg></span></label>
+          <label class="radio"><input type="radio" name="appMenu" id="menuSupport" /><span class="name"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg></span></label>
+        </div>
+      </nav>
+    </div>
   </div>
 
   <script>
@@ -407,9 +530,110 @@
     const appBody = document.getElementById('appBody');
     const appMenu = document.getElementById('appMenu');
     const pageContainer = document.getElementById('pageContainer');
-    const pageContent = document.getElementById('pageContent'); // Using inner HTML of container
     const pageTitle = document.getElementById('pageTitle');
     const headerNickname = document.getElementById('headerNickname');
+
+    // ==========================================
+    // DB CONNECTION MONITORING
+    // ==========================================
+    const dbConnectionOverlay = document.getElementById('dbConnectionOverlay');
+    const appBlurWrapper = document.getElementById('appBlurWrapper');
+    const dbDots = document.getElementById('dbDots');
+    
+    let isDbConnected = true;
+    let dbCheckInterval = null;
+    let dotsCount = 0;
+    let dotsInterval = null;
+
+    // Dots animation
+    function startDotsAnimation() {
+      if (dotsInterval) return;
+      dotsInterval = setInterval(() => {
+        dotsCount = (dotsCount + 1) % 4;
+        if (dbDots) dbDots.textContent = '.'.repeat(dotsCount);
+      }, 500);
+    }
+
+    function stopDotsAnimation() {
+      if (dotsInterval) {
+        clearInterval(dotsInterval);
+        dotsInterval = null;
+      }
+      if (dbDots) dbDots.textContent = '';
+    }
+
+    // Show connection lost overlay
+    function showConnectionLost() {
+      if (!isDbConnected) return;
+      isDbConnected = false;
+      
+      appBlurWrapper.classList.add('blurred');
+      dbConnectionOverlay.classList.add('visible');
+      startDotsAnimation();
+    }
+
+    // Hide connection lost overlay
+    function hideConnectionLost() {
+      if (isDbConnected) return;
+      isDbConnected = true;
+      
+      appBlurWrapper.classList.remove('blurred');
+      dbConnectionOverlay.classList.remove('visible');
+      stopDotsAnimation();
+    }
+
+    // Ping database
+    async function pingDatabase() {
+      if (!supabaseClient) {
+        // If supabase not initialized, don't show overlay
+        return;
+      }
+
+      try {
+        // Simple ping query - just check if we can connect
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000);
+
+        const { error } = await supabaseClient
+          .from('poker_users')
+          .select('id')
+          .limit(1)
+          .abortSignal(controller.signal);
+
+        clearTimeout(timeoutId);
+
+        if (error && error.code !== 'PGRST116') {
+          // Real error (not just "no rows")
+          showConnectionLost();
+        } else {
+          hideConnectionLost();
+        }
+      } catch (err) {
+        // Network error or timeout
+        if (err.name === 'AbortError' || err.message === 'Failed to fetch') {
+          showConnectionLost();
+        }
+      }
+    }
+
+    // Start DB monitoring
+    function startDbMonitoring() {
+      if (dbCheckInterval) clearInterval(dbCheckInterval);
+      
+      // Initial check
+      pingDatabase();
+      
+      // Check every 2 seconds
+      dbCheckInterval = setInterval(pingDatabase, 2000);
+    }
+
+    // Stop DB monitoring (if needed)
+    function stopDbMonitoring() {
+      if (dbCheckInterval) {
+        clearInterval(dbCheckInterval);
+        dbCheckInterval = null;
+      }
+    }
 
     // ==========================================
     // AUTH LOGIC
@@ -773,7 +997,400 @@
     loginForm.addEventListener('submit', handleLogin);
     registerForm.addEventListener('submit', handleRegister);
     document.getElementById('logoutBtn').addEventListener('click', hideApp);
-    document.addEventListener('DOMContentLoaded', checkAutoLogin);
+    
+    // Start DB monitoring on load
+    document.addEventListener('DOMContentLoaded', () => {
+      checkAutoLogin();
+      startDbMonitoring();
+    });
+  </script>
+
+  <!-- Three.js Card Animation Module -->
+  <script type="module">
+    import * as THREE from 'three';
+    import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
+
+    // Three.js Setup
+    const container = document.getElementById('dbCanvasContainer');
+    if (!container) {
+      console.error('Canvas container not found');
+    }
+
+    const scene = new THREE.Scene();
+    
+    const camera = new THREE.PerspectiveCamera(45, container.offsetWidth / container.offsetHeight, 0.1, 1000);
+    camera.position.z = 4;
+
+    const renderer = new THREE.WebGLRenderer({ 
+      antialias: true, 
+      alpha: true 
+    });
+    renderer.setSize(container.offsetWidth, container.offsetHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setClearColor(0x000000, 0);
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.0;
+    container.insertBefore(renderer.domElement, container.firstChild);
+
+    // Освещение
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.3);
+    scene.add(ambientLight);
+
+    const keyLight = new THREE.DirectionalLight(0xffffff, 1.0);
+    keyLight.position.set(5, 5, 5);
+    scene.add(keyLight);
+
+    const fillLight = new THREE.DirectionalLight(0x8888ff, 0.3);
+    fillLight.position.set(-3, 2, 2);
+    scene.add(fillLight);
+
+    const rimLight = new THREE.PointLight(0xffffff, 0.8);
+    rimLight.position.set(0, -2, 3);
+    scene.add(rimLight);
+
+    // Данные карт
+    const cards = [
+      { rank: 'A', suit: 'spades', isRed: false },
+      { rank: '2', suit: 'hearts', isRed: true },
+      { rank: 'J', suit: 'diamonds', isRed: true }
+    ];
+
+    let currentCardIndex = 0;
+
+    // Генерация envMap
+    function createEnvMap() {
+      const size = 128;
+      const data = new Uint8Array(size * size * 4);
+      
+      for (let i = 0; i < size; i++) {
+        for (let j = 0; j < size; j++) {
+          const idx = (i * size + j) * 4;
+          const gradient = 0.15 + 0.2 * (1 - i / size);
+          const noise = Math.random() * 0.03;
+          data[idx] = Math.min(255, (gradient + noise) * 255);
+          data[idx + 1] = Math.min(255, (gradient + noise) * 255);
+          data[idx + 2] = Math.min(255, (gradient + noise) * 255);
+          data[idx + 3] = 255;
+        }
+      }
+      
+      const texture = new THREE.DataTexture(data, size, size);
+      texture.needsUpdate = true;
+      return texture;
+    }
+
+    const envMap = createEnvMap();
+
+    // Создание текстуры карты
+    function createCardTexture(card, isBack = false) {
+      const canvas = document.createElement('canvas');
+      const scale = 3;
+      canvas.width = 70 * scale;
+      canvas.height = 100 * scale;
+      const ctx = canvas.getContext('2d');
+
+      ctx.scale(scale, scale);
+
+      const suitSymbols = {
+        spades: '♠',
+        hearts: '♥',
+        diamonds: '♦',
+        clubs: '♣'
+      };
+
+      if (isBack) {
+        // Тёмная рубашка
+        const gradient = ctx.createLinearGradient(0, 0, 70, 100);
+        gradient.addColorStop(0, '#1a1a1a');
+        gradient.addColorStop(0.3, '#222222');
+        gradient.addColorStop(0.5, '#1e1e1e');
+        gradient.addColorStop(0.7, '#252525');
+        gradient.addColorStop(1, '#1a1a1a');
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, 70, 100);
+
+        // Brushed metal effect (dark)
+        ctx.globalAlpha = 0.03;
+        for (let i = 0; i < 300; i++) {
+          ctx.strokeStyle = i % 2 === 0 ? '#ffffff' : '#000000';
+          ctx.lineWidth = 0.3;
+          ctx.beginPath();
+          ctx.moveTo(0, i * 0.4);
+          ctx.lineTo(70, i * 0.4 + (Math.random() - 0.5) * 2);
+          ctx.stroke();
+        }
+        ctx.globalAlpha = 1;
+
+        // Геометрический паттерн
+        ctx.strokeStyle = 'rgba(80, 80, 80, 0.4)';
+        ctx.lineWidth = 0.5;
+        
+        const centerX = 35;
+        const centerY = 50;
+        
+        for (let i = 0; i < 4; i++) {
+          const size = 8 + i * 6;
+          ctx.beginPath();
+          ctx.moveTo(centerX, centerY - size);
+          ctx.lineTo(centerX + size * 0.7, centerY);
+          ctx.lineTo(centerX, centerY + size);
+          ctx.lineTo(centerX - size * 0.7, centerY);
+          ctx.closePath();
+          ctx.stroke();
+        }
+
+        // Угловые элементы
+        ctx.strokeStyle = 'rgba(100, 100, 100, 0.3)';
+        ctx.lineWidth = 0.8;
+        
+        ctx.beginPath();
+        ctx.moveTo(8, 18);
+        ctx.lineTo(8, 8);
+        ctx.lineTo(18, 8);
+        ctx.stroke();
+        
+        ctx.beginPath();
+        ctx.moveTo(62, 8);
+        ctx.lineTo(62, 18);
+        ctx.lineTo(52, 8);
+        ctx.stroke();
+        
+        ctx.beginPath();
+        ctx.moveTo(8, 82);
+        ctx.lineTo(8, 92);
+        ctx.lineTo(18, 92);
+        ctx.stroke();
+        
+        ctx.beginPath();
+        ctx.moveTo(62, 92);
+        ctx.lineTo(62, 82);
+        ctx.lineTo(52, 92);
+        ctx.stroke();
+
+        // Тонкая рамка
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+        ctx.lineWidth = 0.5;
+        ctx.strokeRect(4, 4, 62, 92);
+
+      } else {
+        // Лицевая сторона - тёмная платина
+        const baseGradient = ctx.createLinearGradient(0, 0, 70, 100);
+        baseGradient.addColorStop(0, '#252525');
+        baseGradient.addColorStop(0.25, '#2a2a2a');
+        baseGradient.addColorStop(0.5, '#1f1f1f');
+        baseGradient.addColorStop(0.75, '#2d2d2d');
+        baseGradient.addColorStop(1, '#222222');
+        ctx.fillStyle = baseGradient;
+        ctx.fillRect(0, 0, 70, 100);
+
+        // Subtle brushed texture
+        ctx.globalAlpha = 0.02;
+        for (let i = 0; i < 200; i++) {
+          ctx.strokeStyle = Math.random() > 0.5 ? '#fff' : '#000';
+          ctx.lineWidth = 0.2;
+          ctx.beginPath();
+          ctx.moveTo(0, i * 0.5);
+          ctx.lineTo(70, i * 0.5 + (Math.random() - 0.5));
+          ctx.stroke();
+        }
+        ctx.globalAlpha = 1;
+
+        // Внутренняя рамка
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.06)';
+        ctx.lineWidth = 0.5;
+        ctx.strokeRect(4.5, 4.5, 61, 91);
+        
+        ctx.strokeStyle = 'rgba(0, 0, 0, 0.3)';
+        ctx.lineWidth = 0.5;
+        ctx.strokeRect(3.5, 3.5, 63, 93);
+
+        // Цвет масти
+        const suitColor = card.isRed ? '#dc2626' : '#e5e5e5';
+        
+        // Верхний левый угол
+        ctx.fillStyle = suitColor;
+        ctx.font = '600 14px SN Pro, -apple-system, sans-serif';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'top';
+        
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
+        ctx.shadowBlur = 2;
+        ctx.shadowOffsetX = 0.5;
+        ctx.shadowOffsetY = 0.5;
+        ctx.fillText(card.rank, 8, 8);
+        
+        ctx.font = '12px Georgia, serif';
+        ctx.fillText(suitSymbols[card.suit], 8, 22);
+        ctx.shadowColor = 'transparent';
+
+        // Центральный элемент
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        
+        if (card.rank === 'A') {
+          ctx.font = '32px Georgia, serif';
+          ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
+          ctx.shadowBlur = 2;
+          ctx.fillText(suitSymbols[card.suit], 35, 50);
+        } else if (card.rank === '2') {
+          ctx.font = '20px Georgia, serif';
+          ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
+          ctx.shadowBlur = 2;
+          ctx.fillText(suitSymbols[card.suit], 35, 25);
+          ctx.fillText(suitSymbols[card.suit], 35, 75);
+        } else if (card.rank === 'J') {
+          ctx.font = '600 24px SN Pro, -apple-system, sans-serif';
+          ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
+          ctx.shadowBlur = 2;
+          ctx.fillText('J', 35, 42);
+          ctx.font = '14px Georgia, serif';
+          ctx.fillText(suitSymbols[card.suit], 35, 62);
+        }
+        ctx.shadowColor = 'transparent';
+
+        // Нижний правый угол
+        ctx.save();
+        ctx.translate(70, 100);
+        ctx.rotate(Math.PI);
+        ctx.font = '600 14px SN Pro, -apple-system, sans-serif';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'top';
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
+        ctx.shadowBlur = 2;
+        ctx.fillText(card.rank, 8, 8);
+        ctx.font = '12px Georgia, serif';
+        ctx.fillText(suitSymbols[card.suit], 8, 22);
+        ctx.restore();
+
+        // Блик сверху
+        const shineGradient = ctx.createLinearGradient(0, 0, 0, 25);
+        shineGradient.addColorStop(0, 'rgba(255, 255, 255, 0.04)');
+        shineGradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+        ctx.fillStyle = shineGradient;
+        ctx.fillRect(0, 0, 70, 25);
+      }
+
+      const texture = new THREE.CanvasTexture(canvas);
+      texture.anisotropy = renderer.capabilities.getMaxAnisotropy();
+      texture.minFilter = THREE.LinearMipmapLinearFilter;
+      texture.magFilter = THREE.LinearFilter;
+      return texture;
+    }
+
+    // Создание материала карты
+    function createCardMaterial(card) {
+      const frontTexture = createCardTexture(card, false);
+      const backTexture = createCardTexture(card, true);
+
+      const frontMaterial = new THREE.MeshStandardMaterial({
+        map: frontTexture,
+        metalness: 0.4,
+        roughness: 0.5,
+        envMap: envMap,
+        envMapIntensity: 0.4
+      });
+
+      const backMaterial = new THREE.MeshStandardMaterial({
+        map: backTexture,
+        metalness: 0.4,
+        roughness: 0.5,
+        envMap: envMap,
+        envMapIntensity: 0.4
+      });
+
+      const sideMaterial = new THREE.MeshStandardMaterial({
+        color: 0x1a1a1a,
+        metalness: 0.7,
+        roughness: 0.3,
+        envMap: envMap,
+        envMapIntensity: 0.6
+      });
+
+      return [
+        sideMaterial,
+        sideMaterial,
+        sideMaterial,
+        sideMaterial,
+        frontMaterial,
+        backMaterial
+      ];
+    }
+
+    // Геометрия
+    const cardWidth = 0.35;
+    const cardHeight = 0.5;
+    const cardDepth = 0.008;
+    const borderRadius = 0.025;
+
+    const cardGeometry = new RoundedBoxGeometry(
+      cardWidth, 
+      cardHeight, 
+      cardDepth, 
+      6,
+      borderRadius
+    );
+
+    let cardMaterials = createCardMaterial(cards[0]);
+    const card = new THREE.Mesh(cardGeometry, cardMaterials);
+    scene.add(card);
+
+    // Переменные для анимации
+    const rotationSpeed = 0.018;
+    let canSwitch = true;
+
+    // Главная анимация
+    function animate() {
+      requestAnimationFrame(animate);
+
+      const time = performance.now() * 0.001;
+
+      card.rotation.y += rotationSpeed;
+
+      const normalizedRotation = ((card.rotation.y % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
+      
+      const isBackFacing = normalizedRotation > Math.PI * 0.4 && normalizedRotation < Math.PI * 1.6;
+
+      if (isBackFacing && canSwitch) {
+        const midPoint = Math.abs(normalizedRotation - Math.PI) < 0.1;
+        if (midPoint) {
+          currentCardIndex = (currentCardIndex + 1) % cards.length;
+          card.material = createCardMaterial(cards[currentCardIndex]);
+          canSwitch = false;
+        }
+      }
+
+      if (!isBackFacing) {
+        canSwitch = true;
+      }
+
+      // Плавное покачивание
+      card.position.y = Math.sin(time * 0.8) * 0.01;
+      card.rotation.x = Math.sin(time * 0.5) * 0.008;
+      card.rotation.z = Math.sin(time * 0.6) * 0.004;
+
+      // Движение света
+      keyLight.position.x = 5 + Math.sin(time * 0.4) * 2;
+      rimLight.position.x = Math.cos(time * 0.3) * 2;
+
+      renderer.render(scene, camera);
+    }
+
+    animate();
+
+    // Обработка изменения размера окна
+    function handleResize() {
+      const width = Math.min(container.offsetWidth, 430);
+      const height = container.offsetHeight;
+      
+      camera.aspect = width / height;
+      camera.updateProjectionMatrix();
+      renderer.setSize(width, height);
+    }
+
+    window.addEventListener('resize', handleResize);
+    
+    // Initial resize after a short delay to ensure container is rendered
+    setTimeout(handleResize, 100);
   </script>
 </body>
 </html>
