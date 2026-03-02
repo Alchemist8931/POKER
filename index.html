@@ -57,6 +57,7 @@
       transition: opacity 0.4s ease, visibility 0s linear 0s;
     }
 
+    /* Modal Base */
     .auth-modal {
       background: var(--bg-secondary);
       border-radius: 20px;
@@ -69,6 +70,8 @@
       border: 1px solid var(--border-color);
     }
     .auth-overlay.visible .auth-modal { transform: scale(1) translateY(0); }
+    
+    /* Modal Register State */
     .auth-modal.is-register { width: 480px; }
 
     .modal-header { padding: 24px 24px 0; position: relative; }
@@ -81,9 +84,9 @@
     .tab-container .tab:checked + .tab_label { color: var(--text-primary); }
     .tab-container .tab--register:checked ~ .indicator { left: 50%; }
 
-    .modal-body { padding: 24px; padding-top: 28px; transition: padding 0.3s ease; }
+    .modal-body { padding: 24px; padding-top: 28px; }
 
-    /* === ТОЧНАЯ МЕХАНИКА ТРАНСФОРМАЦИИ ИЗ ПРИМЕРА === */
+    /* === ТОЧНАЯ МЕХАНИКА ТРАНСФОРМАЦИИ (БЕЗ ЛИШНИХ СТИЛЕЙ) === */
     .forms-wrapper { position: relative; width: 100%; }
     .auth-form { display: flex; flex-direction: column; gap: 16px; width: 100%; transition: opacity 0.35s ease, transform 0.35s ease, visibility 0.35s ease; }
 
@@ -345,7 +348,7 @@
       gap: 12px;
     }
 
-    /* === MEDIA QUERIES (ДЛЯ МОБИЛЬНЫХ) === */
+    /* === MEDIA QUERIES === */
     @media (max-width: 640px) { 
       .auth-modal { width: calc(100% - 32px); } 
       .auth-modal.is-register { width: calc(100% - 32px); } 
@@ -437,7 +440,7 @@
           </form>
         </div>
       </div>
-      <div class="app-version" id="versionDisplay">v 1.07</div>
+      <div class="app-version" id="versionDisplay">v 1.08</div>
     </div>
   </div>
 
@@ -476,7 +479,7 @@
           <span class="name">Тех поддержка</span>
         </label>
       </div>
-      <div class="app-version" id="versionDisplayFooter">v 1.07</div>
+      <div class="app-version" id="versionDisplayFooter">v 1.08</div>
     </footer>
   </div>
 
@@ -484,7 +487,7 @@
     // ==========================================
     // CONFIGURATION & VERSION
     // ==========================================
-    const APP_VERSION = "v 1.07";
+    const APP_VERSION = "v 1.08";
     const SUPABASE_URL = "https://ncdwlmgwljjwpuawlssr.supabase.co";
     const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5jZHdsbWd3bGpqd3B1YXdsc3NyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njc0NTQxNDksImV4cCI6MjA4MzAzMDE0OX0.rrIznUflWydylTnUZvOxOkeF9eMp91qNN4Bjq2gXRL8";
     
@@ -528,7 +531,7 @@
     // UI LOGIC
     // ==========================================
     
-    // Tab switching (МЕХАНИКА ИЗ ПРИМЕРА)
+    // Tab switching (МЕХАНИКА ИЗ ПРИМЕРА - ТОЧНОЕ СООТВЕТСТВИЕ)
     tabLogin.addEventListener('change', () => { if(tabLogin.checked) authModal.classList.remove('is-register'); });
     tabRegister.addEventListener('change', () => { if(tabRegister.checked) authModal.classList.add('is-register'); });
 
