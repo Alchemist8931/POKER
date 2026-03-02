@@ -603,7 +603,7 @@
             const dateObj = new Date(game.game_date);
             const timeStr = dateObj.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
             const dateStr = dateObj.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
-            const formattedDate = `(${timeStr}) ${dateStr} г.`;
+            const formattedDate = `( ${timeStr} ) ${dateStr}`;
 
             // Format type
             const typeClass = game.game_type === 'Tournament' ? 'tournament' : '';
@@ -632,7 +632,7 @@
                 </div>
                 <div class="game-row">
                   <div class="game-row-left">
-                    <span class="game-seats">Всего мест: ${game.total_seats || 0} Занято: ${game.occupied_seats || 0}</span>
+                    <span class="game-seats">Всего мест: ${game.total_seats || 0} / Занято: ${game.occupied_seats || 0}</span>
                   </div>
                 </div>
             `;
@@ -642,7 +642,7 @@
               gameTables.forEach(table => {
                 html += `
                   <div class="table-row">
-                    - стол ${table.table_number} администратор ${table.admin_name || '-'} контакт ${table.admin_phone || '-'}
+                    Стол №${table.table_number} / Администратор ${table.admin_name || '-'} / Контакт ${table.admin_phone || '-'}
                   </div>
                 `;
               });
