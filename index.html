@@ -5,6 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  
+  <!-- Запрет кэширования для актуальности версии -->
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
+  
   <title>Poker Games - Регистрация</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -404,6 +410,21 @@
     
     .banner svg { flex-shrink: 0; margin-top: 2px; }
 
+    /* Version Tag Style */
+    .version-tag {
+      position: absolute;
+      bottom: 20px;
+      left: 0;
+      right: 0;
+      text-align: center;
+      font-size: 11px;
+      font-weight: 400;
+      color: var(--text-muted);
+      opacity: 0.4;
+      letter-spacing: 0.5px;
+      pointer-events: none;
+    }
+
     /* ==========================================
        APP LAYOUT
     ========================================== */
@@ -742,6 +763,8 @@
         </div>
       </div>
     </div>
+    <!-- Version Tag -->
+    <div class="version-tag" id="versionTag">v 1.02</div>
   </section>
 
   <!-- App Container -->
@@ -799,6 +822,29 @@
 
   <script>
     // ==========================================
+    // VERSION CONTROL
+    // ==========================================
+    const APP_VERSION = 'v 1.03';
+    
+    // Check if version changed and force reload if needed
+    (function checkVersion() {
+      const storedVersion = localStorage.getItem('poker_app_version');
+      
+      // If versions differ, clear old data and reload fresh
+      if (storedVersion && storedVersion !== APP_VERSION) {
+        console.log(`Version changed: ${storedVersion} -> ${APP_VERSION}. Clearing cache...`);
+        localStorage.removeItem('poker_saved_nickname');
+        localStorage.removeItem('poker_saved_password');
+        localStorage.removeItem('poker_auto_login');
+        localStorage.setItem('poker_app_version', APP_VERSION);
+        // Optional: Force reload to ensure fresh HTML/JS
+        // window.location.reload(true); 
+      } else if (!storedVersion) {
+        localStorage.setItem('poker_app_version', APP_VERSION);
+      }
+    })();
+
+    // ==========================================
     // CONFIGURATION & INITIALIZATION
     // ==========================================
     const SUPABASE_URL = "https://ncdwlmgwljjwpuawlssr.supabase.co";
@@ -822,11 +868,10 @@
     // ==========================================
     function cleanString(str) {
       if (!str) return '';
-      // Remove invisible characters, trim, normalize
       return str
         .toString()
-        .normalize('NFKC') // Normalize unicode
-        .replace(/[\u200B-\u200D\uFEFF\u00A0]/g, '') // Remove zero-width spaces and non-breaking spaces
+        .normalize('NFKC')
+        .replace(/[\u200B-\u200D\uFEFF\u00A0]/g, '')
         .trim();
     }
 
@@ -913,7 +958,6 @@
     async function handleLogin(e) {
       e.preventDefault();
       
-      // Clean inputs thoroughly
       const rawNickname = document.getElementById('loginUsername').value;
       const rawPassword = document.getElementById('loginPassword').value;
       
@@ -935,7 +979,6 @@
       hideLoginBanner();
       
       try {
-        // Check if supabase is initialized
         if (!supabaseClient) {
           showLoginBanner('Ошибка: Supabase не инициализирован', 'error');
           loginBtn.classList.remove('loading');
@@ -943,7 +986,6 @@
           return;
         }
 
-        // Use .eq() for exact match - this is more reliable than .ilike()
         const { data, error, status } = await supabaseClient
           .from('poker_users')
           .select('*')
@@ -996,7 +1038,6 @@
         if (user.status === 'confirmed') {
           currentUser = user;
           
-          // Update last_login
           try {
             await supabaseClient
               .from('poker_users')
@@ -1006,7 +1047,6 @@
             console.error("Failed to update last_login:", updateErr);
           }
           
-          // Save credentials for autocomplete
           localStorage.setItem('poker_saved_nickname', nickname);
           localStorage.setItem('poker_saved_password', password);
           localStorage.setItem('poker_auto_login', 'true');
@@ -1035,7 +1075,6 @@
     async function handleRegister(e) {
       e.preventDefault();
       
-      // Clean all inputs
       const lastName = cleanString(document.getElementById('regLastName').value);
       const firstName = cleanString(document.getElementById('regFirstName').value);
       const middleName = cleanString(document.getElementById('regMiddleName').value);
@@ -1046,7 +1085,6 @@
       
       const registerBtn = document.getElementById('registerBtn');
       
-      // Validation
       if (!lastName || !firstName || !middleName || !phone || !email || !nickname || !password) {
         showRegisterBanner('Заполните все поля', 'warning');
         return;
@@ -1100,13 +1138,11 @@
         registerBtn.classList.remove('loading');
         registerBtn.disabled = false;
         
-        // Switch to login after 3 seconds
         setTimeout(() => {
           registerForm.reset();
           hideRegisterBanner();
           tabLogin.checked = true;
           authCard.classList.remove('is-register');
-          // Pre-fill login form with registered nickname
           document.getElementById('loginUsername').value = nickname;
         }, 3000);
         
@@ -1132,7 +1168,6 @@
     }
 
     function hideApp() {
-      // Clear saved credentials
       localStorage.removeItem('poker_saved_nickname');
       localStorage.removeItem('poker_saved_password');
       localStorage.removeItem('poker_auto_login');
@@ -1227,11 +1262,9 @@
       console.log("Auto-login check - has saved credentials:", !!savedNickname);
       
       if (autoLogin === 'true' && savedNickname && savedPassword && supabaseClient) {
-        // Fill the form for autocomplete visual
         document.getElementById('loginUsername').value = savedNickname;
         document.getElementById('loginPassword').value = savedPassword;
         
-        // Try auto-login
         try {
           const { data, error } = await supabaseClient
             .from('poker_users')
@@ -1246,7 +1279,6 @@
             if (user.password === savedPassword && user.status === 'confirmed') {
               currentUser = user;
               
-              // Update last_login
               try {
                 await supabaseClient
                   .from('poker_users')
