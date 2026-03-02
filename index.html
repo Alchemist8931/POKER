@@ -1,0 +1,731 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <title>Poker Games Registration</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link href="https://fonts.googleapis.com/css2?family=SN+Pro:ital,wght@0,200..900;1,200..900&display=swap" rel="stylesheet">
+  <style>
+    /* === THEME & VARIABLES === */
+    :root {
+      --bg-primary: #121212;
+      --bg-secondary: #1E1E1E;
+      --bg-card: #2C2C2C;
+      --text-primary: #FFFFFF;
+      --text-secondary: #B0B0B0;
+      --text-muted: #757575;
+      --border-color: #3A3A3A;
+      --accent: #FFFFFF; /* White accent for dark mode */
+      --accent-hover: #E0E0E0;
+      --accent-text: #000000;
+      --success: #10b981;
+      --warning: #f59e0b;
+      --error: #ef4444;
+      --tab-bg: #1E1E1E;
+      --tab-active: #3A3A3A;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+    body {
+      font-family: 'SN Pro', sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      height: 100vh;
+      height: 100dvh; /* Dynamic viewport height for mobile */
+      overflow: hidden;
+      position: fixed;
+      width: 100%;
+    }
+
+    /* === AUTH OVERLAY === */
+    .auth-overlay {
+      position: fixed; inset: 0;
+      display: flex; align-items: center; justify-content: center;
+      z-index: 100;
+      background: rgba(18, 18, 18, 0.95);
+      backdrop-filter: blur(12px);
+      opacity: 0; visibility: hidden; pointer-events: none;
+      transition: opacity 0.4s ease, visibility 0s linear 0.4s;
+    }
+    
+    .auth-overlay.visible { 
+      opacity: 1; visibility: visible; pointer-events: auto;
+      transition: opacity 0.4s ease, visibility 0s linear 0s;
+    }
+
+    .auth-modal {
+      background: var(--bg-secondary);
+      border-radius: 24px;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+      overflow: hidden;
+      width: 100%;
+      max-width: 420px;
+      margin: 16px;
+      transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+      transform: scale(0.95) translateY(20px);
+      border: 1px solid var(--border-color);
+    }
+    .auth-overlay.visible .auth-modal { transform: scale(1) translateY(0); }
+    .auth-modal.is-register { max-width: 480px; }
+
+    .modal-header { padding: 24px 24px 0; position: relative; }
+
+    /* Tabs */
+    .tab-container { position: relative; display: flex; padding: 2px; background-color: var(--tab-bg); border-radius: 12px; }
+    .tab-container .indicator { width: 50%; height: 40px; background: var(--tab-active); position: absolute; top: 2px; left: 2px; z-index: 9; border-radius: 10px; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+    .tab-container .tab { width: 50%; height: 40px; position: absolute; z-index: 99; opacity: 0; cursor: pointer; }
+    .tab-container .tab_label { width: 50%; height: 40px; position: relative; z-index: 999; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 600; color: var(--text-muted); cursor: pointer; transition: color 0.3s ease; }
+    .tab-container .tab:checked + .tab_label { color: var(--text-primary); }
+    .tab-container .tab--register:checked ~ .indicator { left: 50%; }
+
+    .modal-body { padding: 24px; padding-top: 32px; }
+    
+    .forms-wrapper { position: relative; width: 100%; }
+    .auth-form { display: flex; flex-direction: column; gap: 16px; width: 100%; transition: opacity 0.35s ease, transform 0.35s ease, visibility 0.35s ease; }
+
+    .login-form { position: relative; opacity: 1; visibility: visible; transform: translateX(0); z-index: 2; }
+    .register-form { position: absolute; top: 0; left: 0; opacity: 0; visibility: hidden; transform: translateX(30px); z-index: 1; pointer-events: none; }
+
+    .auth-modal.is-register .login-form { position: absolute; top: 0; left: 0; opacity: 0; visibility: hidden; transform: translateX(-30px); z-index: 1; pointer-events: none; }
+    .auth-modal.is-register .register-form { position: relative; opacity: 1; visibility: visible; transform: translateX(0); z-index: 2; pointer-events: auto; }
+    
+    /* Register form grid for mobile optimization */
+    .register-form .form-row-double {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    /* Inputs */
+    .input-container { position: relative; width: 100%; }
+    .styled_input_bar { width: 100%; padding: 16px; font-size: 15px; font-family: 'SN Pro', sans-serif; border: 1.5px solid var(--border-color); border-radius: 12px; background-color: var(--bg-primary); color: var(--text-primary); outline: none; transition: all 0.3s ease; }
+    .styled_input_bar::placeholder { color: transparent; }
+    .styled_input_bar:focus { border-color: var(--accent); background-color: var(--bg-secondary); box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.1); }
+    .input-label { position: absolute; left: 16px; top: 50%; transform: translateY(-50%); font-size: 15px; font-family: 'SN Pro', sans-serif; color: var(--text-muted); pointer-events: none; transition: all 0.3s ease; background: transparent; padding: 0 4px; }
+    .styled_input_bar:focus + .input-label, .styled_input_bar:not(:placeholder-shown) + .input-label { top: 0; left: 12px; font-size: 12px; font-weight: 500; background-color: var(--bg-secondary); color: var(--accent); }
+
+    /* Buttons */
+    .submit-btn { width: 100%; padding: 16px 24px; background: var(--accent); color: var(--accent-text); border: none; border-radius: 12px; font-size: 16px; font-weight: 600; cursor: pointer; transition: all 0.3s ease; position: relative; overflow: hidden; margin-top: 8px; }
+    .submit-btn:hover { background: var(--accent-hover); }
+    .submit-btn:disabled { background: var(--text-muted); cursor: not-allowed; }
+    .submit-btn .loader { display: none; width: 20px; height: 20px; border: 2px solid rgba(0,0,0,0.2); border-top-color: var(--accent-text); border-radius: 50%; animation: spin 0.8s linear infinite; }
+    .submit-btn.loading .btn-text { visibility: hidden; }
+    .submit-btn.loading .loader { display: block; position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); }
+    @keyframes spin { to { transform: translate(-50%, -50%) rotate(360deg); } }
+
+    /* Banners */
+    .banner { padding: 0 16px; margin: 0; border-radius: 12px; font-size: 13px; line-height: 1.5; display: flex; align-items: center; gap: 10px; opacity: 0; max-height: 0; overflow: hidden; transition: all 0.3s ease; background: var(--bg-card); }
+    .banner.visible { opacity: 1; max-height: 100px; padding: 14px 16px; margin-bottom: 8px; }
+    .banner.warning { background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.3); color: #fbbf24; }
+    .banner.success { background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.3); color: #34d399; }
+    .banner.error { background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.3); color: #f87171; }
+    .banner svg { flex-shrink: 0; }
+
+    /* === APP LAYOUT === */
+    .app-container {
+      display: none;
+      flex-direction: column;
+      height: 100vh;
+      height: 100dvh;
+      width: 100%;
+      position: relative;
+      overflow: hidden;
+      opacity: 0;
+      transition: opacity 0.5s ease;
+    }
+    .app-container.visible { display: flex; opacity: 1; }
+
+    /* Header */
+    .app-header {
+      height: 100px;
+      min-height: 100px;
+      width: 100%;
+      background: var(--bg-secondary);
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0 24px;
+      z-index: 10;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+    }
+    .header-title { font-size: 24px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .header-user { display: flex; align-items: center; gap: 16px; }
+    .user-nickname { font-size: 16px; font-weight: 500; color: var(--text-secondary); }
+    .logout-btn { 
+      padding: 8px 16px; 
+      background: transparent; 
+      border: 1px solid var(--border-color); 
+      color: var(--text-primary); 
+      border-radius: 8px; 
+      font-family: 'SN Pro', sans-serif;
+      font-weight: 500;
+      cursor: pointer; 
+      transition: all 0.2s; 
+    }
+    .logout-btn:hover { background: var(--bg-card); border-color: var(--error); color: var(--error); }
+
+    /* Body */
+    .app-body {
+      flex: 1;
+      overflow-y: auto;
+      overflow-x: hidden;
+      background: var(--bg-primary);
+      position: relative;
+      -webkit-overflow-scrolling: touch;
+    }
+    
+    .page {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      width: 100%;
+      opacity: 0;
+      transform: translateY(20px);
+      position: absolute;
+      top: 0; left: 0;
+      transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+      pointer-events: none;
+      visibility: hidden;
+    }
+    .page.active { opacity: 1; transform: translateY(0); pointer-events: auto; visibility: visible; position: relative; }
+    .page-placeholder { font-size: 20px; color: var(--text-muted); font-weight: 500; }
+
+    /* Footer Menu */
+    .app-footer {
+      height: 200px;
+      min-height: 200px;
+      width: 100%;
+      background: var(--bg-secondary);
+      border-top: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px 24px;
+      z-index: 10;
+      box-shadow: 0 -4px 20px rgba(0,0,0,0.3);
+    }
+
+    /* Radio Inputs Style (Adapted for Dark Theme) */
+    .radio-inputs {
+      position: relative;
+      display: flex;
+      flex-wrap: wrap;
+      border-radius: 16px;
+      background-color: var(--bg-card);
+      box-sizing: border-box;
+      box-shadow: 0 0 0px 1px rgba(255, 255, 255, 0.05);
+      padding: 6px;
+      width: 100%;
+      max-width: 400px;
+      font-size: 16px;
+    }
+
+    .radio-inputs .radio {
+      flex: 1 1 auto;
+      text-align: center;
+    }
+
+    .radio-inputs .radio input { display: none; }
+
+    .radio-inputs .radio .name {
+      display: flex;
+      cursor: pointer;
+      align-items: center;
+      justify-content: center;
+      border-radius: 12px;
+      border: none;
+      padding: 12px 0;
+      color: var(--text-secondary);
+      transition: all 0.2s ease-in-out;
+      font-weight: 500;
+    }
+
+    .radio-inputs .radio input:checked + .name {
+      background-color: var(--bg-primary);
+      color: var(--text-primary);
+      font-weight: 700;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+      animation: select_footer 0.3s ease;
+    }
+
+    .radio-inputs .radio:hover .name {
+      background-color: rgba(255, 255, 255, 0.05);
+    }
+
+    @keyframes select_footer {
+      0% { transform: scale(0.95); }
+      50% { transform: scale(1.02); }
+      100% { transform: scale(1); }
+    }
+
+    /* Particle effects for menu */
+    .radio-inputs .radio input:checked + .name::before,
+    .radio-inputs .radio input:checked + .name::after {
+      content: "";
+      position: absolute;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--success); /* Green particles */
+      opacity: 0;
+      animation: particles 0.6s ease forwards;
+    }
+
+    .radio-inputs .radio input:checked + .name::before { top: -8px; left: 50%; transform: translateX(-50%); }
+    .radio-inputs .radio input:checked + .name::after { bottom: -8px; left: 50%; transform: translateX(-50%); }
+
+    @keyframes particles {
+      0% { opacity: 0; transform: translateX(-50%) translateY(0); }
+      50% { opacity: 1; }
+      100% { opacity: 0; transform: translateX(-50%) translateY(var(--direction)); }
+    }
+    .radio-inputs .radio input:checked + .name::before { --direction: -12px; }
+    .radio-inputs .radio input:checked + .name::after { --direction: 12px; }
+
+    /* Utility */
+    .text-center { text-align: center; }
+  </style>
+</head>
+<body>
+
+  <!-- AUTH OVERLAY -->
+  <div class="auth-overlay visible" id="authOverlay">
+    <div class="auth-modal" id="authModal">
+      <div class="modal-header">
+        <div class="tab-container">
+          <input type="radio" name="authTab" id="tabLogin" class="tab tab--login" checked />
+          <label class="tab_label" for="tabLogin">Вход</label>
+          
+          <input type="radio" name="authTab" id="tabRegister" class="tab tab--register" />
+          <label class="tab_label" for="tabRegister">Регистрация</label>
+          
+          <div class="indicator"></div>
+        </div>
+      </div>
+      
+      <div class="modal-body">
+        <div class="forms-wrapper">
+          
+          <!-- LOGIN FORM -->
+          <form class="auth-form login-form" id="loginForm">
+            <div class="input-container">
+              <input type="text" class="styled_input_bar" id="loginUsername" name="username" placeholder=" " autocomplete="username" required />
+              <label class="input-label" for="loginUsername">Никнейм</label>
+            </div>
+            <div class="input-container">
+              <input type="password" class="styled_input_bar" id="loginPassword" name="password" placeholder=" " autocomplete="current-password" required />
+              <label class="input-label" for="loginPassword">Пароль</label>
+            </div>
+            
+            <div class="banner warning" id="loginBanner">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+              <span id="loginBannerText">Ошибка входа.</span>
+            </div>
+            
+            <button type="submit" class="submit-btn" id="loginBtn">
+              <span class="btn-text">Войти</span><div class="loader"></div>
+            </button>
+          </form>
+          
+          <!-- REGISTER FORM -->
+          <form class="auth-form register-form" id="registerForm">
+            <div class="form-row-double">
+              <div class="input-container">
+                <input type="text" class="styled_input_bar" id="regFirstName" placeholder=" " required />
+                <label class="input-label" for="regFirstName">Имя</label>
+              </div>
+              <div class="input-container">
+                <input type="text" class="styled_input_bar" id="regLastName" placeholder=" " required />
+                <label class="input-label" for="regLastName">Фамилия</label>
+              </div>
+            </div>
+            
+            <div class="input-container">
+              <input type="text" class="styled_input_bar" id="regMiddleName" placeholder=" " required />
+              <label class="input-label" for="regMiddleName">Отчество</label>
+            </div>
+
+            <div class="input-container">
+              <input type="tel" class="styled_input_bar" id="regPhone" placeholder=" " maxlength="18" required />
+              <label class="input-label" for="regPhone">Мобильный телефон</label>
+            </div>
+            
+            <div class="input-container">
+              <input type="email" class="styled_input_bar" id="regEmail" placeholder=" " required />
+              <label class="input-label" for="regEmail">Почтовый ящик</label>
+            </div>
+
+            <div class="input-container">
+              <input type="text" class="styled_input_bar" id="regNickname" name="username" placeholder=" " autocomplete="username" required />
+              <label class="input-label" for="regNickname">Никнейм (Логин)</label>
+            </div>
+            
+            <div class="input-container">
+              <input type="password" class="styled_input_bar" id="regPassword" name="new-password" placeholder=" " autocomplete="new-password" required />
+              <label class="input-label" for="regPassword">Пароль</label>
+            </div>
+            
+            <div class="banner success" id="registerBanner">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+              <span>Регистрация успешна! Ожидайте подтверждения организатора.</span>
+            </div>
+            
+            <button type="submit" class="submit-btn" id="registerBtn">
+              <span class="btn-text">Зарегистрироваться</span><div class="loader"></div>
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- APP CONTAINER -->
+  <div class="app-container" id="appContainer">
+    
+    <!-- HEADER -->
+    <header class="app-header">
+      <div class="header-title" id="headerTitle">Мероприятия</div>
+      <div class="header-user">
+        <span class="user-nickname" id="headerNickname">User</span>
+        <button class="logout-btn" id="logoutBtn">Выход</button>
+      </div>
+    </header>
+
+    <!-- BODY -->
+    <main class="app-body">
+      <!-- Page 1 -->
+      <div class="page active" id="page-events">
+        <span class="page-placeholder">Страница 1</span>
+      </div>
+      <!-- Page 2 -->
+      <div class="page" id="page-my">
+        <span class="page-placeholder">Страница 2</span>
+      </div>
+      <!-- Page 3 -->
+      <div class="page" id="page-support">
+        <span class="page-placeholder">Страница 3</span>
+      </div>
+    </main>
+
+    <!-- FOOTER MENU -->
+    <footer class="app-footer">
+      <div class="radio-inputs">
+        <label class="radio">
+          <input type="radio" name="navMenu" value="events" checked />
+          <span class="name">Мероприятия</span>
+        </label>
+        <label class="radio">
+          <input type="radio" name="navMenu" value="my" />
+          <span class="name">Мои участия</span>
+        </label>
+        <label class="radio">
+          <input type="radio" name="navMenu" value="support" />
+          <span class="name">Тех поддержка</span>
+        </label>
+      </div>
+    </footer>
+  </div>
+
+  <script>
+    // ==========================================
+    // CONFIGURATION
+    // ==========================================
+    const SUPABASE_URL = "https://ncdwlmgwljjwpuawlssr.supabase.co";
+    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5jZHdsbWd3bGpqd3B1YXdsc3NyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njc0NTQxNDksImV4cCI6MjA4MzAzMDE0OX0.rrIznUflWydylTnUZvOxOkeF9eMp91qNN4Bjq2gXRL8";
+    
+    let supabase = null;
+    let currentUser = null;
+
+    // Initialize Supabase
+    if (SUPABASE_URL && SUPABASE_ANON_KEY) {
+      supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    } else {
+      console.error("Supabase credentials missing!");
+    }
+
+    // ==========================================
+    // DOM ELEMENTS
+    // ==========================================
+    const authOverlay = document.getElementById('authOverlay');
+    const authModal = document.getElementById('authModal');
+    const tabLogin = document.getElementById('tabLogin');
+    const tabRegister = document.getElementById('tabRegister');
+    
+    const loginForm = document.getElementById('loginForm');
+    const loginBtn = document.getElementById('loginBtn');
+    const loginBanner = document.getElementById('loginBanner');
+    const loginBannerText = document.getElementById('loginBannerText');
+
+    const registerForm = document.getElementById('registerForm');
+    const registerBtn = document.getElementById('registerBtn');
+    const registerBanner = document.getElementById('registerBanner');
+
+    const appContainer = document.getElementById('appContainer');
+    const headerTitle = document.getElementById('headerTitle');
+    const headerNickname = document.getElementById('headerNickname');
+    const logoutBtn = document.getElementById('logoutBtn');
+    const navInputs = document.querySelectorAll('input[name="navMenu"]');
+    const pages = document.querySelectorAll('.page');
+
+    // ==========================================
+    // UI LOGIC (Tabs, Navigation)
+    // ==========================================
+    
+    // Tab switching
+    tabLogin.addEventListener('change', () => { if(tabLogin.checked) authModal.classList.remove('is-register'); });
+    tabRegister.addEventListener('change', () => { if(tabRegister.checked) authModal.classList.add('is-register'); });
+
+    // Phone Mask
+    document.getElementById('regPhone').addEventListener('input', (e) => {
+      let value = e.target.value.replace(/\D/g, '');
+      if (value.length > 0) {
+        if (value[0] === '8' || value[0] === '7') value = value.substring(1);
+        let formatted = '+7';
+        if (value.length > 0) formatted += ' (' + value.substring(0, 3);
+        if (value.length > 3) formatted += ') ' + value.substring(3, 6);
+        if (value.length > 6) formatted += '-' + value.substring(6, 8);
+        if (value.length > 8) formatted += '-' + value.substring(8, 10);
+        e.target.value = formatted;
+      }
+    });
+
+    // Navigation
+    navInputs.forEach(input => {
+      input.addEventListener('change', (e) => {
+        const targetPage = e.target.value;
+        updatePage(targetPage);
+      });
+    });
+
+    function updatePage(pageId) {
+      // Update Title
+      const titles = {
+        'events': 'Мероприятия',
+        'my': 'Мои участия',
+        'support': 'Тех поддержка'
+      };
+      headerTitle.textContent = titles[pageId] || 'Страница';
+
+      // Switch Pages
+      pages.forEach(p => {
+        if(p.id === `page-${pageId}`) {
+          p.classList.add('active');
+        } else {
+          p.classList.remove('active');
+        }
+      });
+    }
+
+    // ==========================================
+    // AUTH LOGIC
+    // ==========================================
+
+    // Check Auto-Login on Load
+    async function checkSession() {
+      const savedUser = localStorage.getItem('poker_user');
+      if (savedUser) {
+        try {
+          const user = JSON.parse(savedUser);
+          // Verify user still exists and is confirmed in DB
+          const { data, error } = await supabase
+            .from('poker_users')
+            .select('*')
+            .eq('id', user.id)
+            .single();
+
+          if (data && data.status === 'confirmed') {
+            currentUser = data;
+            enterApp();
+          } else {
+            localStorage.removeItem('poker_user');
+          }
+        } catch (e) {
+          console.error("Session restore failed", e);
+          localStorage.removeItem('poker_user');
+        }
+      }
+    }
+
+    // Login Handler
+    async function handleLogin(e) {
+      e.preventDefault();
+      const nickname = document.getElementById('loginUsername').value.trim();
+      const password = document.getElementById('loginPassword').value;
+
+      if(!nickname || !password) return;
+
+      setButtonLoading(loginBtn, true);
+      hideBanner(loginBanner);
+
+      try {
+        const { data, error } = await supabase
+          .from('poker_users')
+          .select('*')
+          .ilike('nickname', nickname)
+          .single();
+
+        if (error || !data) {
+          showLoginError('Пользователь не найден');
+          return;
+        }
+
+        // Simple password check (As per requirements: "Пароль пользователя" stored in table)
+        if (data.password !== password) {
+          showLoginError('Неверный пароль');
+          return;
+        }
+
+        // Status Check
+        if (data.status === 'created') {
+          showLoginError('Свяжитесь пожалуйста с организатором для подтверждения вашей учетной записи', 'warning');
+          return;
+        }
+        
+        if (data.status === 'blocked') {
+          showLoginError('Свяжитесь пожалуйста с организатором ваша учетная запись заблокирована', 'error');
+          return;
+        }
+
+        // Success
+        currentUser = data;
+        
+        // Update Last Login
+        await supabase
+          .from('poker_users')
+          .update({ last_login: new Date().toISOString() })
+          .eq('id', data.id);
+
+        // Save to LocalStorage for Auto-Login
+        localStorage.setItem('poker_user', JSON.stringify(data));
+
+        enterApp();
+
+      } catch (err) {
+        console.error(err);
+        showLoginError('Ошибка сервера');
+      } finally {
+        setButtonLoading(loginBtn, false);
+      }
+    }
+
+    function showLoginError(message, type = 'warning') {
+      loginBannerText.textContent = message;
+      loginBanner.className = `banner ${type} visible`;
+    }
+
+    function hideBanner(bannerEl) {
+      bannerEl.classList.remove('visible');
+    }
+
+    // Register Handler
+    async function handleRegister(e) {
+      e.preventDefault();
+      
+      const payload = {
+        first_name: document.getElementById('regFirstName').value.trim(),
+        last_name: document.getElementById('regLastName').value.trim(),
+        middle_name: document.getElementById('regMiddleName').value.trim(),
+        phone: document.getElementById('regPhone').value.trim(),
+        email: document.getElementById('regEmail').value.trim(),
+        nickname: document.getElementById('regNickname').value.trim(),
+        password: document.getElementById('regPassword').value, // Plain text as per requirement
+        status: 'created'
+      };
+
+      if (!payload.nickname || !payload.password) {
+        alert('Заполните обязательные поля');
+        return;
+      }
+
+      setButtonLoading(registerBtn, true);
+
+      try {
+        const { error } = await supabase
+          .from('poker_users')
+          .insert([payload]);
+
+        if (error) {
+          console.error(error);
+          if (error.code === '23505') { // Unique violation
+            alert('Этот никнейм уже занят!');
+          } else {
+            alert('Ошибка регистрации: ' + error.message);
+          }
+          return;
+        }
+
+        // Success UI
+        registerBanner.classList.add('visible');
+        registerForm.reset();
+        
+        setTimeout(() => {
+          registerBanner.classList.remove('visible');
+          tabLogin.checked = true;
+          authModal.classList.remove('is-register');
+        }, 4000);
+
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setButtonLoading(registerBtn, false);
+      }
+    }
+
+    // Logout
+    function handleLogout() {
+      localStorage.removeItem('poker_user');
+      currentUser = null;
+      
+      appContainer.classList.remove('visible');
+      setTimeout(() => {
+        authOverlay.classList.add('visible');
+        loginForm.reset();
+        hideBanner(loginBanner);
+      }, 300);
+    }
+
+    function enterApp() {
+      headerNickname.textContent = currentUser.nickname;
+      
+      // Reset Nav to Page 1
+      document.querySelector('input[name="navMenu"][value="events"]').checked = true;
+      updatePage('events');
+
+      // Animation Transition
+      authOverlay.classList.remove('visible');
+      setTimeout(() => {
+        appContainer.classList.add('visible');
+      }, 400);
+    }
+
+    function setButtonLoading(btn, isLoading) {
+      if (isLoading) {
+        btn.classList.add('loading');
+        btn.disabled = true;
+      } else {
+        btn.classList.remove('loading');
+        btn.disabled = false;
+      }
+    }
+
+    // ==========================================
+    // INITIALIZATION
+    // ==========================================
+    loginForm.addEventListener('submit', handleLogin);
+    registerForm.addEventListener('submit', handleRegister);
+    logoutBtn.addEventListener('click', handleLogout);
+
+    // Start
+    checkSession();
+
+  </script>
+</body>
+</html>
