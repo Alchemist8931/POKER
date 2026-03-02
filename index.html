@@ -454,7 +454,7 @@
           </div>
         </div>
       </div>
-      <div class="version-tag">v 1.08</div>
+      <div class="version-tag">v 1.09</div>
     </section>
 
     <!-- App Container -->
@@ -491,7 +491,7 @@
     // ==========================================
     // VERSION & CONFIG
     // ==========================================
-    const APP_VERSION = 'v 1.08';
+    const APP_VERSION = 'v 1.09';
     (function checkVersion() {
       const storedVersion = localStorage.getItem('poker_app_version');
       if (storedVersion && storedVersion !== APP_VERSION) {
@@ -1084,7 +1084,7 @@
     // Создание текстуры карты
     function createCardTexture(card, isBack = false) {
       const canvas = document.createElement('canvas');
-      const scale = 3;
+      const scale = 6;
       canvas.width = 70 * scale;
       canvas.height = 100 * scale;
       const ctx = canvas.getContext('2d');
