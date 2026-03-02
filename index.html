@@ -2,38 +2,41 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <!-- Фон статус-бара для Android/Chrome -->
+  <meta name="theme-color" content="#121212" />
   
-  <!-- Запрет кэширования для актуальности версии -->
+  <!-- Запрет кэширования -->
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
   <meta http-equiv="Pragma" content="no-cache" />
   <meta http-equiv="Expires" content="0" />
   
-  <title>Poker Games - Регистрация</title>
+  <title>Poker Games</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <link href="https://fonts.googleapis.com/css2?family=SN+Pro:ital,wght@0,200..900;1,200..900&display=swap" rel="stylesheet">
   <style>
     :root {
-      --bg-primary: #0d0d0f;
-      --bg-secondary: #141418;
-      --bg-card: #1a1a1f;
-      --bg-elevated: #222228;
-      --text-primary: #f0f0f2;
-      --text-secondary: #a0a0a8;
-      --text-muted: #6a6a72;
-      --border-color: #2a2a32;
-      --border-light: #3a3a44;
-      --accent: #00d4aa;
-      --accent-hover: #00f0c0;
-      --accent-glow: rgba(0, 212, 170, 0.15);
-      --success: #00d4aa;
-      --warning: #f0a030;
-      --error: #f04040;
-      --tab-bg: #1a1a1f;
-      --tab-active: #2a2a32;
+      --bg-primary: #121212;
+      --bg-secondary: #1E1E1E;
+      --bg-card: #2C2C2C;
+      --bg-elevated: #3A3A3A;
+      --text-primary: #FFFFFF;
+      --text-secondary: #B0B0B0;
+      --text-muted: #757575;
+      --border-color: #3A3A3A;
+      --border-light: #505050;
+      --accent: #FFFFFF;
+      --accent-hover: #E0E0E0;
+      --accent-text: #000000;
+      --accent-glow: rgba(255, 255, 255, 0.1);
+      --success: #10b981;
+      --warning: #f59e0b;
+      --error: #ef4444;
+      --tab-bg: #1E1E1E;
+      --tab-active: #3A3A3A;
     }
 
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -50,19 +53,19 @@
 
     ::-webkit-scrollbar { width: 4px; }
     ::-webkit-scrollbar-track { background: var(--bg-secondary); }
-    ::-webkit-scrollbar-thumb { background: var(--border-light); border-radius: 2px; }
+    ::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 2px; }
 
+    /* Убираем цветные градиенты, оставляем тонкие белые */
     .bg-pattern {
       position: fixed; inset: 0;
       background: 
-        radial-gradient(ellipse at 20% 0%, rgba(0, 212, 170, 0.08) 0%, transparent 50%),
-        radial-gradient(ellipse at 80% 100%, rgba(0, 212, 170, 0.05) 0%, transparent 50%);
+        radial-gradient(ellipse at 50% 0%, rgba(255, 255, 255, 0.03) 0%, transparent 60%);
       pointer-events: none; z-index: 0;
     }
 
     .noise-overlay {
       position: fixed; inset: 0;
-      opacity: 0.03;
+      opacity: 0.02;
       background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
       pointer-events: none; z-index: 1;
     }
@@ -78,6 +81,9 @@
       align-items: center;
       justify-content: center;
       padding: 20px;
+      /* Учитываем вырезы камеры/брови */
+      padding-top: max(20px, env(safe-area-inset-top));
+      padding-bottom: max(20px, env(safe-area-inset-bottom));
       background: var(--bg-primary);
       opacity: 0;
       visibility: hidden;
@@ -98,6 +104,8 @@
       display: flex;
       flex-direction: column;
       align-items: center;
+      position: relative;
+      padding-bottom: 40px;
     }
 
     .auth-brand {
@@ -108,19 +116,19 @@
     .brand-icon {
       width: 64px;
       height: 64px;
-      background: linear-gradient(135deg, var(--accent) 0%, #00b896 100%);
+      background: var(--accent);
       border-radius: 20px;
       display: flex;
       align-items: center;
       justify-content: center;
       margin: 0 auto 16px;
-      box-shadow: 0 8px 32px rgba(0, 212, 170, 0.25);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
     }
 
     .brand-icon svg {
       width: 32px;
       height: 32px;
-      color: #0d0d0f;
+      color: var(--accent-text); /* Черная иконка на белом фоне */
     }
 
     .brand-title {
@@ -140,10 +148,7 @@
       background: var(--bg-card);
       border: 1px solid var(--border-color);
       border-radius: 24px;
-      box-shadow: 
-        0 0 0 1px rgba(255,255,255,0.03),
-        0 25px 50px -12px rgba(0, 0, 0, 0.5),
-        0 0 100px rgba(0, 212, 170, 0.05);
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
       overflow: hidden;
       transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
       transform: scale(0.98) translateY(10px);
@@ -179,7 +184,7 @@
       z-index: 9; 
       border-radius: 11px; 
       border: 1px solid var(--border-light);
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
       transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); 
     }
     
@@ -325,8 +330,8 @@
     .submit-btn { 
       width: 100%; 
       padding: 16px 24px; 
-      background: linear-gradient(135deg, var(--accent) 0%, #00b896 100%); 
-      color: #0d0d0f; 
+      background: var(--accent); 
+      color: var(--accent-text); 
       border: none; 
       border-radius: 14px; 
       font-size: 15px; 
@@ -339,8 +344,8 @@
     }
     
     .submit-btn:hover { 
-      transform: translateY(-2px); 
-      box-shadow: 0 8px 25px rgba(0, 212, 170, 0.3);
+      background: var(--accent-hover);
+      transform: translateY(-1px);
     }
     
     .submit-btn:active { transform: translateY(0); }
@@ -350,15 +355,14 @@
       color: var(--text-muted);
       cursor: not-allowed; 
       transform: none; 
-      box-shadow: none;
     }
     
     .submit-btn .loader { 
       display: none; 
       width: 20px; 
       height: 20px; 
-      border: 2px solid rgba(13, 13, 15, 0.3); 
-      border-top-color: #0d0d0f; 
+      border: 2px solid rgba(0, 0, 0, 0.2); 
+      border-top-color: var(--accent-text); 
       border-radius: 50%; 
       animation: spin 0.8s linear infinite; 
     }
@@ -391,26 +395,25 @@
     }
     
     .banner.warning { 
-      background: rgba(240, 160, 48, 0.1); 
-      border: 1px solid rgba(240, 160, 48, 0.3); 
-      color: #f0a030; 
+      background: rgba(245, 158, 11, 0.1); 
+      border: 1px solid rgba(245, 158, 11, 0.3); 
+      color: var(--warning); 
     }
     
     .banner.error { 
-      background: rgba(240, 64, 64, 0.1); 
-      border: 1px solid rgba(240, 64, 64, 0.3); 
-      color: #f06060; 
+      background: rgba(239, 68, 68, 0.1); 
+      border: 1px solid rgba(239, 68, 68, 0.3); 
+      color: var(--error); 
     }
     
     .banner.success { 
-      background: rgba(0, 212, 170, 0.1); 
-      border: 1px solid rgba(0, 212, 170, 0.3); 
-      color: var(--accent); 
+      background: rgba(16, 185, 129, 0.1); 
+      border: 1px solid rgba(16, 185, 129, 0.3); 
+      color: var(--success); 
     }
     
     .banner svg { flex-shrink: 0; margin-top: 2px; }
 
-    /* Version Tag Style */
     .version-tag {
       position: absolute;
       bottom: 20px;
@@ -442,16 +445,19 @@
       top: 0;
       left: 0;
       right: 0;
-      height: 60px;
-      background: linear-gradient(180deg, var(--bg-primary) 0%, rgba(13, 13, 15, 0.95) 100%);
-      backdrop-filter: blur(20px);
-      -webkit-backdrop-filter: blur(20px);
+      /* Высота авто с учетом безопасной зоны */
+      height: auto;
+      min-height: 60px;
+      padding-top: env(safe-area-inset-top); /* Растягиваемся под статусбар */
+      background: var(--bg-primary);
       border-bottom: 1px solid var(--border-color);
       z-index: 50;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 0 20px;
+      padding-left: 20px;
+      padding-right: 20px;
+      padding-bottom: 10px;
     }
 
     .header-left {
@@ -482,11 +488,10 @@
     .header-nickname {
       font-size: 14px;
       font-weight: 500;
-      color: var(--accent);
+      color: var(--accent-text);
       padding: 8px 14px;
-      background: var(--accent-glow);
+      background: var(--accent);
       border-radius: 10px;
-      border: 1px solid rgba(0, 212, 170, 0.2);
     }
 
     .logout-btn {
@@ -504,15 +509,14 @@
     }
     
     .logout-btn:hover {
-      background: rgba(240, 64, 64, 0.1);
-      border-color: rgba(240, 64, 64, 0.3);
+      border-color: var(--error);
       color: var(--error);
     }
 
     .app-body {
       flex: 1;
-      margin-top: 100px;
-      margin-bottom: 200px;
+      margin-top: calc(60px + env(safe-area-inset-top) + 10px); /* Отступ с учетом высоты шапки */
+      margin-bottom: calc(130px + env(safe-area-inset-bottom)); /* Отступ с учетом высоты меню */
       padding: 20px;
       overflow-y: auto;
       position: relative;
@@ -562,17 +566,16 @@
       bottom: 0;
       left: 0;
       right: 0;
-      height: 130px;
-      background: linear-gradient(0deg, var(--bg-primary) 0%, rgba(13, 13, 15, 0.98) 100%);
-      backdrop-filter: blur(20px);
-      -webkit-backdrop-filter: blur(20px);
+      height: auto;
+      min-height: 130px;
+      background: var(--bg-primary);
       border-top: 1px solid var(--border-color);
       z-index: 50;
       display: flex;
       align-items: center;
       justify-content: center;
       padding: 10px;
-      padding-bottom: 30px;
+      padding-bottom: calc(30px + env(safe-area-inset-bottom)); /* Учет безопасной зоны снизу */
     }
 
     .radio-inputs {
@@ -627,16 +630,10 @@
 
     .radio-inputs .radio input:checked + .name svg {
       opacity: 1;
-      filter: drop-shadow(0 0 8px var(--accent-glow));
     }
 
     .radio-inputs .radio:hover .name {
       background-color: var(--bg-elevated);
-    }
-
-    .radio-inputs .radio input:checked + .name {
-      position: relative;
-      box-shadow: 0 4px 15px rgba(0, 212, 170, 0.15);
     }
 
     .menu-label {
@@ -650,8 +647,6 @@
       .brand-title { font-size: 20px; }
       .header-title { font-size: 18px; }
       .header-nickname { font-size: 12px; padding: 6px 10px; }
-      .app-menu { height: 180px; }
-      .app-body { margin-bottom: 180px; }
     }
 
     @media (min-width: 500px) {
@@ -765,7 +760,7 @@
       </div>
     </div>
     <!-- Version Tag -->
-    <div class="version-tag" id="versionTag">v 1.04</div>
+    <div class="version-tag" id="versionTag">v 1.05</div>
   </section>
 
   <!-- App Container -->
@@ -800,21 +795,18 @@
           <input type="radio" name="appMenu" id="menuEvents" checked />
           <span class="name">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
-            <span class="menu-label">Мероприятия</span>
           </span>
         </label>
         <label class="radio">
           <input type="radio" name="appMenu" id="menuMyEvents" />
           <span class="name">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
-            <span class="menu-label">Мои участия</span>
           </span>
         </label>
         <label class="radio">
           <input type="radio" name="appMenu" id="menuSupport" />
           <span class="name">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
-            <span class="menu-label">Поддержка</span>
           </span>
         </label>
       </div>
@@ -825,21 +817,18 @@
     // ==========================================
     // VERSION CONTROL
     // ==========================================
-    const APP_VERSION = 'v 1.04';
+    const APP_VERSION = 'v 1.05';
     
     // Check if version changed and force reload if needed
     (function checkVersion() {
       const storedVersion = localStorage.getItem('poker_app_version');
       
-      // If versions differ, clear old data and reload fresh
       if (storedVersion && storedVersion !== APP_VERSION) {
         console.log(`Version changed: ${storedVersion} -> ${APP_VERSION}. Clearing cache...`);
         localStorage.removeItem('poker_saved_nickname');
         localStorage.removeItem('poker_saved_password');
         localStorage.removeItem('poker_auto_login');
         localStorage.setItem('poker_app_version', APP_VERSION);
-        // Optional: Force reload to ensure fresh HTML/JS
-        // window.location.reload(true); 
       } else if (!storedVersion) {
         localStorage.setItem('poker_app_version', APP_VERSION);
       }
@@ -854,7 +843,6 @@
     let supabaseClient = null;
     let currentUser = null;
 
-    // Initialize Supabase
     if (SUPABASE_URL && SUPABASE_ANON_KEY) {
       try {
         supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -864,16 +852,9 @@
       }
     }
 
-    // ==========================================
-    // HELPER: Clean string
-    // ==========================================
     function cleanString(str) {
       if (!str) return '';
-      return str
-        .toString()
-        .normalize('NFKC')
-        .replace(/[\u200B-\u200D\uFEFF\u00A0]/g, '')
-        .trim();
+      return str.toString().normalize('NFKC').replace(/[\u200B-\u200D\uFEFF\u00A0]/g, '').trim();
     }
 
     // ==========================================
@@ -914,9 +895,7 @@
     document.getElementById('regPhone').addEventListener('input', (e) => {
       let value = e.target.value.replace(/\D/g, '');
       if (value.length > 0) {
-        if (value[0] === '8' || value[0] === '7') {
-          value = value.substring(1);
-        }
+        if (value[0] === '8' || value[0] === '7') value = value.substring(1);
         let formatted = '+7';
         if (value.length > 0) formatted += ' (' + value.substring(0, 3);
         if (value.length > 3) formatted += ') ' + value.substring(3, 6);
@@ -937,8 +916,7 @@
     }
 
     function hideLoginBanner() {
-      const banner = document.getElementById('loginBanner');
-      banner.classList.remove('visible');
+      document.getElementById('loginBanner').classList.remove('visible');
     }
 
     function showRegisterBanner(message, type = 'success') {
@@ -949,8 +927,7 @@
     }
 
     function hideRegisterBanner() {
-      const banner = document.getElementById('registerBanner');
-      banner.classList.remove('visible');
+      document.getElementById('registerBanner').classList.remove('visible');
     }
 
     // ==========================================
@@ -959,16 +936,9 @@
     async function handleLogin(e) {
       e.preventDefault();
       
-      const rawNickname = document.getElementById('loginUsername').value;
-      const rawPassword = document.getElementById('loginPassword').value;
-      
-      const nickname = cleanString(rawNickname);
-      const password = cleanString(rawPassword);
-      
+      const nickname = cleanString(document.getElementById('loginUsername').value);
+      const password = cleanString(document.getElementById('loginPassword').value);
       const loginBtn = document.getElementById('loginBtn');
-      
-      console.log("Login attempt - nickname:", nickname, "length:", nickname.length);
-      console.log("Login attempt - password length:", password.length);
       
       if (!nickname || !password) {
         showLoginBanner('Заполните все поля', 'warning');
@@ -987,23 +957,13 @@
           return;
         }
 
-        const { data, error, status } = await supabaseClient
+        const { data, error } = await supabaseClient
           .from('poker_users')
           .select('*')
           .eq('nickname', nickname)
           .limit(1);
         
-        console.log("Supabase response - status:", status);
-        console.log("Supabase response - error:", error);
-        console.log("Supabase response - data:", data);
-        
-        if (error) {
-          console.error("Supabase error:", error);
-          showLoginBanner('Ошибка соединения: ' + error.message, 'error');
-          loginBtn.classList.remove('loading');
-          loginBtn.disabled = false;
-          return;
-        }
+        if (error) throw error;
         
         if (!data || data.length === 0) {
           showLoginBanner('Пользователь не найден', 'warning');
@@ -1013,7 +973,6 @@
         }
         
         const user = data[0];
-        console.log("Found user:", user.nickname, "status:", user.status);
         
         if (user.password !== password) {
           showLoginBanner('Неверный пароль', 'warning');
@@ -1023,14 +982,14 @@
         }
         
         if (user.status === 'created') {
-          showLoginBanner('Свяжитесь пожалуйста с организатором для подтверждения вашей учетной записи', 'warning');
+          showLoginBanner('Свяжитесь с организатором для подтверждения учетной записи', 'warning');
           loginBtn.classList.remove('loading');
           loginBtn.disabled = false;
           return;
         }
         
         if (user.status === 'blocked') {
-          showLoginBanner('Свяжитесь пожалуйста с организатором ваша учетная запись заблокирована', 'error');
+          showLoginBanner('Ваша учетная запись заблокирована. Свяжитесь с организатором.', 'error');
           loginBtn.classList.remove('loading');
           loginBtn.disabled = false;
           return;
@@ -1039,14 +998,10 @@
         if (user.status === 'confirmed') {
           currentUser = user;
           
-          try {
-            await supabaseClient
-              .from('poker_users')
-              .update({ last_login: new Date().toISOString() })
-              .eq('id', user.id);
-          } catch (updateErr) {
-            console.error("Failed to update last_login:", updateErr);
-          }
+          await supabaseClient
+            .from('poker_users')
+            .update({ last_login: new Date().toISOString() })
+            .eq('id', user.id);
           
           localStorage.setItem('poker_saved_nickname', nickname);
           localStorage.setItem('poker_saved_password', password);
@@ -1054,17 +1009,12 @@
           
           loginBtn.classList.remove('loading');
           loginBtn.disabled = false;
-          
           showApp();
-        } else {
-          showLoginBanner('Неизвестный статус учетной записи: ' + user.status, 'error');
-          loginBtn.classList.remove('loading');
-          loginBtn.disabled = false;
         }
         
       } catch (err) {
         console.error("Login exception:", err);
-        showLoginBanner('Критическая ошибка: ' + err.message, 'error');
+        showLoginBanner('Ошибка: ' + err.message, 'error');
         loginBtn.classList.remove('loading');
         loginBtn.disabled = false;
       }
@@ -1096,11 +1046,6 @@
         return;
       }
       
-      if (password.length < 4) {
-        showRegisterBanner('Пароль должен быть не менее 4 символов', 'warning');
-        return;
-      }
-      
       registerBtn.classList.add('loading');
       registerBtn.disabled = true;
       hideRegisterBanner();
@@ -1121,21 +1066,15 @@
           }])
           .select();
         
-        console.log("Register response - data:", data);
-        console.log("Register response - error:", error);
-        
         if (error) {
-          if (error.code === '23505') {
-            showRegisterBanner('Этот никнейм уже занят', 'error');
-          } else {
-            showRegisterBanner('Ошибка: ' + error.message, 'error');
-          }
+          if (error.code === '23505') showRegisterBanner('Этот никнейм уже занят', 'error');
+          else showRegisterBanner('Ошибка: ' + error.message, 'error');
           registerBtn.classList.remove('loading');
           registerBtn.disabled = false;
           return;
         }
         
-        showRegisterBanner('Регистрация успешно завершена. Ожидайте подтверждения организатора.', 'success');
+        showRegisterBanner('Регистрация завершена. Ожидайте подтверждения.', 'success');
         registerBtn.classList.remove('loading');
         registerBtn.disabled = false;
         
@@ -1148,7 +1087,6 @@
         }, 3000);
         
       } catch (err) {
-        console.error("Register exception:", err);
         showRegisterBanner('Критическая ошибка: ' + err.message, 'error');
         registerBtn.classList.remove('loading');
         registerBtn.disabled = false;
@@ -1160,7 +1098,6 @@
     // ==========================================
     function showApp() {
       authSection.classList.remove('visible');
-      
       setTimeout(() => {
         appContainer.classList.add('visible');
         updateUserUI();
@@ -1173,9 +1110,7 @@
       localStorage.removeItem('poker_saved_password');
       localStorage.removeItem('poker_auto_login');
       currentUser = null;
-      
       appContainer.classList.remove('visible');
-      
       setTimeout(() => {
         authSection.classList.add('visible');
         loginForm.reset();
@@ -1188,9 +1123,7 @@
     }
 
     function updateUserUI() {
-      if (currentUser) {
-        headerNickname.textContent = currentUser.nickname || 'player';
-      }
+      if (currentUser) headerNickname.textContent = currentUser.nickname || 'player';
     }
 
     // ==========================================
@@ -1200,57 +1133,21 @@
     const menuMyEvents = document.getElementById('menuMyEvents');
     const menuSupport = document.getElementById('menuSupport');
 
-    const pageNames = {
-      'events': 'Мероприятия',
-      'myevents': 'Мои участия',
-      'support': 'Тех поддержка'
-    };
+    const pageNames = { 'events': 'Мероприятия', 'myevents': 'Мои участия', 'support': 'Тех поддержка' };
 
     function navigateToPage(page) {
       pageContainer.classList.remove('visible');
-      
       setTimeout(() => {
         pageTitle.textContent = pageNames[page] || 'Страница';
-        
-        let pageNum = 1;
-        
-        if (page === 'events') {
-          pageNum = 1;
-        } else if (page === 'myevents') {
-          pageNum = 2;
-        } else if (page === 'support') {
-          pageNum = 3;
-        }
-        
-        pageContent.innerHTML = `
-          <div class="page-placeholder">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-              <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
-              <line x1="16" y1="2" x2="16" y2="6"></line>
-              <line x1="8" y1="2" x2="8" y2="6"></line>
-              <line x1="3" y1="10" x2="21" y2="10"></line>
-            </svg>
-            <span>Страница ${pageNum}</span>
-          </div>
-        `;
-        
-        setTimeout(() => {
-          pageContainer.classList.add('visible');
-        }, 50);
+        let pageNum = page === 'events' ? 1 : page === 'myevents' ? 2 : 3;
+        pageContent.innerHTML = `<div class="page-placeholder"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg><span>Страница ${pageNum}</span></div>`;
+        setTimeout(() => pageContainer.classList.add('visible'), 50);
       }, 300);
     }
 
-    menuEvents.addEventListener('change', () => {
-      if (menuEvents.checked) navigateToPage('events');
-    });
-
-    menuMyEvents.addEventListener('change', () => {
-      if (menuMyEvents.checked) navigateToPage('myevents');
-    });
-
-    menuSupport.addEventListener('change', () => {
-      if (menuSupport.checked) navigateToPage('support');
-    });
+    menuEvents.addEventListener('change', () => { if (menuEvents.checked) navigateToPage('events'); });
+    menuMyEvents.addEventListener('change', () => { if (menuMyEvents.checked) navigateToPage('myevents'); });
+    menuSupport.addEventListener('change', () => { if (menuSupport.checked) navigateToPage('support'); });
 
     // ==========================================
     // AUTO-LOGIN CHECK
@@ -1260,58 +1157,30 @@
       const savedPassword = localStorage.getItem('poker_saved_password');
       const autoLogin = localStorage.getItem('poker_auto_login');
       
-      console.log("Auto-login check - has saved credentials:", !!savedNickname);
-      
       if (autoLogin === 'true' && savedNickname && savedPassword && supabaseClient) {
         document.getElementById('loginUsername').value = savedNickname;
         document.getElementById('loginPassword').value = savedPassword;
-        
         try {
-          const { data, error } = await supabaseClient
-            .from('poker_users')
-            .select('*')
-            .eq('nickname', savedNickname)
-            .limit(1);
-          
-          console.log("Auto-login response:", data, error);
-          
+          const { data } = await supabaseClient.from('poker_users').select('*').eq('nickname', savedNickname).limit(1);
           if (data && data.length > 0) {
             const user = data[0];
             if (user.password === savedPassword && user.status === 'confirmed') {
               currentUser = user;
-              
-              try {
-                await supabaseClient
-                  .from('poker_users')
-                  .update({ last_login: new Date().toISOString() })
-                  .eq('id', user.id);
-              } catch (e) {
-                console.error("Failed to update last_login:", e);
-              }
-              
+              await supabaseClient.from('poker_users').update({ last_login: new Date().toISOString() }).eq('id', user.id);
               showApp();
             }
           }
-        } catch (err) {
-          console.error("Auto-login error:", err);
-        }
+        } catch (err) { console.error("Auto-login error:", err); }
       }
     }
 
     // ==========================================
-    // EVENT LISTENERS
+    // EVENT LISTENERS & INIT
     // ==========================================
     loginForm.addEventListener('submit', handleLogin);
     registerForm.addEventListener('submit', handleRegister);
     document.getElementById('logoutBtn').addEventListener('click', hideApp);
-
-    // ==========================================
-    // INITIALIZATION
-    // ==========================================
-    document.addEventListener('DOMContentLoaded', () => {
-      console.log("DOM loaded, checking auto-login...");
-      checkAutoLogin();
-    });
+    document.addEventListener('DOMContentLoaded', checkAutoLogin);
   </script>
 </body>
 </html>
