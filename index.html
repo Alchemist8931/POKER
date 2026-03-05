@@ -10,7 +10,8 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
   <meta http-equiv="Pragma" content="no-cache" />
   <meta http-equiv="Expires" content="0" />
-  
+  <head>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.min.js"></script>
   <title>Poker Games</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -313,6 +314,7 @@
     .game-list-container { display: flex; flex-direction: column; gap: 15px; }
     
     .game-card {
+      position: relative;
       background: var(--bg-secondary);
       border-radius: 12px;
       padding: 10px;
@@ -372,6 +374,49 @@
       body { display: flex; justify-content: center; background: #000; }
       .app-container, .auth-section, .db-connection-overlay { max-width: 430px; border-left: 1px solid var(--border-color); border-right: 1px solid var(--border-color); position: relative; }
     }
+
+    /* ... существующие стили ... */
+
+/* Стили для кнопок в карточке */
+.game-actions {
+  margin-top: 8px;
+  display: flex;
+  justify-content: center;
+  gap: 10px; /* Расстояние между кнопками */
+}
+
+/* Стили для кнопки "Я не приду" */
+.book-btn.cancel {
+  background: transparent;
+  border: 1px solid var(--text-muted);
+  color: var(--text-secondary);
+}
+
+.book-btn.cancel:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* Стили для неактивной кнопки "Я участвую" */
+.book-btn.info {
+  background: transparent;
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  opacity: 0.6;
+  cursor: default;
+}
+
+/* Контейнер для анимации пыли */
+.dust-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none; /* Чтобы не перекрывать клики */
+  z-index: 10;
+  overflow: hidden;
+}
   </style>
 </head>
 <body>
@@ -786,6 +831,9 @@
     // ==========================================
     // EVENTS PAGE RENDERING
     // ==========================================
+        // ==========================================
+    // EVENTS PAGE RENDERING
+    // ==========================================
     async function renderEventsPage() {
       pageContainer.innerHTML = `<div class="page-placeholder"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="animation: spin 2s linear infinite;"><circle cx="12" cy="12" r="10"></circle><path d="M12 6v6l4 2"></path></svg><span>Загрузка...</span></div>`;
       
@@ -822,6 +870,7 @@
           games.forEach(game => {
             const gameTables = tables.filter(t => t.game_id === game.id);
             const isParticipating = participatedGameIds.has(game.id);
+            const isTournament = game.game_type === 'Tournament';
             
             // Format date
             const dateObj = new Date(game.game_date);
@@ -830,11 +879,11 @@
             const formattedDate = `( ${timeStr} ) ${dateStr}`;
 
             // Format type
-            const typeClass = game.game_type === 'Tournament' ? 'tournament' : '';
-            const typeText = game.game_type === 'Tournament' ? 'TOURNAMENT' : 'Loose Game';
+            const typeClass = isTournament ? 'tournament' : '';
+            const typeText = isTournament ? 'TOURNAMENT' : 'Loose Game';
 
             html += `
-              <div class="game-card">
+              <div class="game-card" data-game-id="${game.id}" data-is-tournament="${isTournament}">
                 <div class="game-row">
                   <div class="game-row-left">
                     <span class="game-number">${game.game_number || ''}</span>
@@ -866,32 +915,253 @@
               gameTables.forEach(table => {
                 html += `
                   <div class="table-row">
-                    Стол №${table.table_number} / упр. ${table.admin_name || '-'} / Контакт ${table.admin_phone || '-'}
+                    Стол №${table.table_number}
                   </div>
                 `;
               });
               html += '</div>';
             }
 
-            html += `
-              <div class="game-actions">
-                <button class="book-btn ${isParticipating ? 'participating' : ''}" 
-                        onclick="handleBookSeat('${game.id}', this)" 
-                        ${isParticipating ? 'disabled' : ''}>
-                  ${isParticipating ? 'Я участвую' : 'Занять место'}
-                </button>
-              </div>
-            </div>`;
+            // Buttons Logic
+            html += `<div class="game-actions">`;
+            
+            if (isParticipating) {
+              // Кнопка отмены
+              html += `<button class="book-btn cancel" onclick="handleCancelSeat('${game.id}', this)">Я не приду</button>`;
+              // Информационная кнопка (неактивная)
+              html += `<button class="book-btn info" disabled>Я участвую</button>`;
+            } else {
+              // Кнопка записи
+              html += `<button class="book-btn" onclick="handleBookSeat('${game.id}', this)">Занять место</button>`;
+            }
+            
+            html += `</div></div>`;
           });
         }
         
         html += '</div>';
         pageContainer.innerHTML = html;
 
+        // Инициализация анимации для турниров после рендера
+        initTournamentAnimations();
+
       } catch (err) {
         console.error(err);
         pageContainer.innerHTML = `<div class="page-placeholder"><span>Ошибка загрузки данных</span></div>`;
       }
+    }
+
+    // Функция отмены записи
+    async function handleCancelSeat(gameId, btn) {
+      if (!currentUser) return;
+      
+      btn.disabled = true;
+      btn.textContent = 'Отмена...';
+
+      try {
+        const { error } = await supabaseClient
+          .from('poker_game_list_table_participant')
+          .delete()
+          .match({ game_id: gameId, user_nickname: currentUser.nickname });
+
+        if (error) throw error;
+
+        // Просто перерендериваем страницу для обновления состояния
+        renderEventsPage();
+
+      } catch (err) {
+        console.error(err);
+        alert('Ошибка отмены: ' + err.message);
+        btn.disabled = false;
+        btn.textContent = 'Я не приду';
+      }
+    }
+
+    // Обновленная функция записи (чтобы перерендерить страницу после успеха)
+    async function handleBookSeat(gameId, btn) {
+      if (!currentUser) return;
+      
+      btn.disabled = true;
+      btn.textContent = 'Запись...';
+
+      try {
+        const { data: tables, error: tError } = await supabaseClient
+          .from('poker_game_list_table')
+          .select('id, game_number, address, table_number, admin_name, admin_phone')
+          .eq('game_id', gameId)
+          .limit(1);
+
+        if (tError || !tables || tables.length === 0) {
+          alert('Нет доступных столов для записи');
+          btn.disabled = false;
+          btn.textContent = 'Занять место';
+          return;
+        }
+
+        const table = tables[0];
+        const { data: gameInfo } = await supabaseClient
+          .from('poker_game_list')
+          .select('game_number, address')
+          .eq('id', gameId)
+          .single();
+
+        const { error: insertError } = await supabaseClient
+          .from('poker_game_list_table_participant')
+          .insert([{
+            game_id: gameId,
+            game_number: gameInfo?.game_number,
+            address: gameInfo?.address || table.address,
+            table_id: table.id,
+            table_number: table.table_number,
+            admin_name: table.admin_name,
+            admin_phone: table.admin_phone,
+            user_nickname: currentUser.nickname,
+            status: 'в игре',
+            last_name: currentUser.last_name,
+            first_name: currentUser.first_name,
+            middle_name: currentUser.middle_name,
+            phone: currentUser.phone,
+            email: currentUser.email
+          }]);
+
+        if (insertError) {
+          if (insertError.code === '23505') {
+            alert('Вы уже записаны на это мероприятие');
+          } else {
+            throw insertError;
+          }
+        }
+        
+        // Перерендериваем страницу в любом случае (либо запись прошла, либо уже записан)
+        renderEventsPage();
+
+      } catch (err) {
+        console.error(err);
+        alert('Ошибка записи: ' + err.message);
+        btn.disabled = false;
+        btn.textContent = 'Занять место';
+      }
+    }
+
+    // ==========================================
+    // TOURNAMENT DUST ANIMATION (P5.JS)
+    // ==========================================
+    function initTournamentAnimations() {
+      // Находим все карточки турниров
+      const tournamentCards = document.querySelectorAll('.game-card[data-is-tournament="true"]');
+      
+      tournamentCards.forEach(card => {
+        // Проверяем, не инициализирована ли уже анимация
+        if (card.querySelector('.dust-container')) return;
+
+        const typeSpan = card.querySelector('.game-type.tournament');
+        if (!typeSpan) return;
+
+        // Создаем контейнер для canvas
+        const dustContainer = document.createElement('div');
+        dustContainer.classList.add('dust-container');
+        card.appendChild(dustContainer);
+
+        // Создаем экземпляр p5 в режиме instance mode
+        new p5((sketch) => {
+          let particles = [];
+          let layers = [
+            { color: "#B0B0B0", size: 1, height: 125, speed: 1.2, frequency: 30 },
+            { color: "#FFFFFF", size: 2, height: 100, speed: 1.1, frequency: 30 },
+            { color: "#B0B0B0", size: 3, height: 75, speed: 0.9, frequency: 30 },
+            { color: "#757575", size: 3, height: 50, speed: 0.8, frequency: 30 }
+          ];
+          
+          let targetRect = { x: 0, y: 0, w: 0, h: 0 };
+
+          sketch.setup = () => {
+            let canvas = sketch.createCanvas(card.offsetWidth, card.offsetHeight);
+            canvas.parent(dustContainer);
+            sketch.noStroke();
+            updateRect();
+          };
+
+          function updateRect() {
+            // Получаем координаты текста "TOURNAMENT" относительно карточки
+            const cardRect = card.getBoundingClientRect();
+            const spanRect = typeSpan.getBoundingClientRect();
+            
+            targetRect = {
+              x: spanRect.right - cardRect.left, // Правая граница текста
+              y: spanRect.top - cardRect.top,    // Верхняя граница
+              w: spanRect.width,
+              h: spanRect.height
+            };
+          }
+
+          sketch.draw = () => {
+            sketch.clear();
+            updateRect(); // Обновляем координаты на случай скролла/ресайза
+
+            // Логика создания частиц (движение слева направо -> значит эмиттер справа)
+            layers.forEach((layer) => {
+              if (sketch.frameCount % layer.frequency == 0) {
+                // Эмиттер: x = правый край текста, y = диапазон высоты текста
+                let x = targetRect.x;
+                let y = targetRect.y + sketch.random(0, targetRect.h);
+                
+                // Создаем частицу
+                particles.push(new Particle(x, y, layer.color, layer.size, layer.height, layer.speed, sketch));
+              }
+            });
+
+            // Обновление и отрисовка частиц
+            for (let i = particles.length - 1; i >= 0; i--) {
+              let p = particles[i];
+              p.update();
+              p.display();
+              if (p.isFinished()) {
+                particles.splice(i, 1);
+              }
+            }
+          };
+
+          class Particle {
+            constructor(x, y, color, size, maxDist, speed, s) {
+              this.s = s;
+              this.x = x;
+              this.y = y;
+              this.color = color;
+              this.size = size;
+              this.maxDist = maxDist;
+              this.speed = speed;
+              this.alpha = 255;
+              
+              // Направление: Слева направо (vx > 0), вертикальный разброс (vy случайный)
+              this.vx = s.random(0.5, 1.5) * speed;
+              this.vy = s.random(-0.5, 0.5) * speed;
+              this.startX = x;
+            }
+
+            update() {
+              this.x += this.vx;
+              this.y += this.vy;
+              
+              let deltaX = this.x - this.startX;
+              // Затухание после прохождения определенного расстояния
+              if (deltaX > this.maxDist) {
+                this.alpha -= 10;
+              }
+            }
+
+            display() {
+              this.s.noStroke();
+              // Формирование цвета с альфа-каналом
+              this.s.fill(this.color + this.s.hex(this.alpha, 2));
+              this.s.ellipse(this.x, this.y, this.size);
+            }
+
+            isFinished() {
+              return this.alpha < 0;
+            }
+          }
+        });
+      });
     }
 
     async function handleBookSeat(gameId, btn) {
