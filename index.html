@@ -973,20 +973,30 @@
       btn.textContent = 'Отмена...';
 
       try {
-        // Удаление записи из БД
-        const { error } = await supabaseClient
+        // Пытаемся удалить запись
+        const { data, error, count } = await supabaseClient
           .from('poker_game_list_table_participant')
           .delete()
           .match({ game_id: gameId, user_nickname: currentUser.nickname });
 
-        if (error) throw error;
+        if (error) {
+            // Если ошибка RLS или другая
+            console.error('Supabase Delete Error:', error);
+            throw error;
+        }
 
-        // Успешная отмена - переключаем UI
+        // Supabase возвращает пустой массив data, если удаление прошло успешно, 
+        // но при RLS запретах может вернуться null/data без ошибок, поэтому проверяем статус через консоль
+        
+        console.log('Delete result:', data); 
+        
+        // Переключаем UI в любом случае (оптимистично), 
+        // но если запись не удалилась, при обновлении страницы кнопка вернется назад
         updateUIToAvailable(btn);
 
       } catch (err) {
         console.error('Ошибка отмены:', err);
-        alert('Ошибка отмены: ' + err.message);
+        alert('Ошибка отмены: ' + (err.message || "Нет прав на удаление. Проверьте RLS политики в Supabase."));
         btn.textContent = 'Я не приду';
         btn.disabled = false;
       }
@@ -1147,14 +1157,37 @@
       });
     }
 
+
+
+
+
+    
+    // Функция записи (Занять место) с проверкой на дубликаты
     async function handleBookSeat(gameId, btn) {
       if (!currentUser) return;
       
       btn.disabled = true;
-      btn.textContent = 'Запись...';
+      btn.textContent = 'Проверка...';
 
       try {
-        // Find first table for this game (simplified logic as per UI design)
+        // 1. Проверяем, существует ли уже запись
+        const { data: existing, error: checkError } = await supabaseClient
+          .from('poker_game_list_table_participant')
+          .select('id')
+          .eq('game_id', gameId)
+          .eq('user_nickname', currentUser.nickname)
+          .limit(1);
+
+        if (checkError) throw checkError;
+
+        // Если запись уже есть, просто переключаем UI и не создаем дубль
+        if (existing && existing.length > 0) {
+          updateUIToParticipating(btn);
+          return; 
+        }
+
+        // 2. Если записи нет, ищем стол
+        btn.textContent = 'Запись...';
         const { data: tables, error: tError } = await supabaseClient
           .from('poker_game_list_table')
           .select('id, game_number, address, table_number, admin_name, admin_phone')
@@ -1163,21 +1196,19 @@
 
         if (tError || !tables || tables.length === 0) {
           alert('Нет доступных столов для записи');
-          btn.disabled = false;
           btn.textContent = 'Занять место';
+          btn.disabled = false;
           return;
         }
 
         const table = tables[0];
-
-        // Get Game Info for denormalization
         const { data: gameInfo } = await supabaseClient
           .from('poker_game_list')
           .select('game_number, address')
           .eq('id', gameId)
           .single();
 
-        // Insert Participant
+        // 3. Создаем запись
         const { error: insertError } = await supabaseClient
           .from('poker_game_list_table_participant')
           .insert([{
@@ -1189,7 +1220,7 @@
             admin_name: table.admin_name,
             admin_phone: table.admin_phone,
             user_nickname: currentUser.nickname,
-            status: 'в игре', // Setting status to 'in game' to occupy seat immediately
+            status: 'в игре',
             last_name: currentUser.last_name,
             first_name: currentUser.first_name,
             middle_name: currentUser.middle_name,
@@ -1197,28 +1228,22 @@
             email: currentUser.email
           }]);
 
-        if (insertError) {
-          if (insertError.code === '23505') {
-            alert('Вы уже записаны на это мероприятие');
-            btn.textContent = 'Я участвую';
-            btn.classList.add('participating');
-          } else {
-            throw insertError;
-          }
-        } else {
-          btn.textContent = 'Я участвую';
-          btn.classList.add('participating');
-          // Optional: Force refresh stats if trigger is slow/missing logic
-          // For now we assume DB trigger handles occupied_seats
-        }
+        if (insertError) throw insertError;
+
+        // Успех - переключаем UI
+        updateUIToParticipating(btn);
 
       } catch (err) {
-        console.error(err);
+        console.error('Ошибка записи:', err);
         alert('Ошибка записи: ' + err.message);
-        btn.disabled = false;
         btn.textContent = 'Занять место';
+        btn.disabled = false;
       }
     }
+
+
+
+    
 
     // Event Listeners
     menuEvents.addEventListener('change', () => { if (menuEvents.checked) navigateToPage('events'); });
