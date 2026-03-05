@@ -352,15 +352,15 @@
     .game-actions {
       margin-top: 8px;
       display: flex;
-      justify-content: space-between; /* Равномерное распределение */
-      gap: 10px; /* Отступ между кнопками */
+      justify-content: space-between;
+      gap: 10px;
       width: 100%;
     }
 
     /* Базовые стили кнопки */
     .book-btn {
       flex: 1; /* Равная ширина */
-      padding: 8px 5px; /* Уменьшаем боковые отступы для компактности */
+      padding: 8px 5px;
       background: var(--accent);
       color: var(--accent-text);
       border: none;
@@ -368,28 +368,32 @@
       font-size: 12px;
       font-weight: 600;
       cursor: pointer;
-      transition: all 0.2s ease;
       text-align: center;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
+      
+      /* Плавный переход для появления/исчезновения */
+      transition: opacity 0.3s ease, visibility 0s linear 0s, background-color 0.2s ease, border-color 0.2s ease;
     }
     
     .book-btn:hover { background: var(--accent-hover); }
     
     /* Класс для скрытой кнопки (невидимая, но занимает место) */
     .book-btn.hidden-placeholder {
+      opacity: 0;
       visibility: hidden;
       pointer-events: none;
-      opacity: 0;
+      /* Задержка для visibility, чтобы успел пройти fade-out */
+      transition: opacity 0.3s ease, visibility 0s linear 0.3s;
     }
 
-    /* Стили для кнопки "Занять место" (при наведении, если активна) */
-    .book-btn.book-action:hover {
-      background: var(--accent-hover);
+    /* Стили для кнопки "Занять место" (центральная) */
+    .book-btn.book-action {
+        /* Стандартные стили акцента */
     }
 
-    /* Стили для кнопки "Я не приду" */
+    /* Стили для кнопки "Я не приду" (левая) */
     .book-btn.cancel-action {
       background: transparent;
       border: 1px solid var(--text-muted);
@@ -400,16 +404,21 @@
       color: var(--accent);
     }
 
-    /* Стили для кнопки "Я участвую" (информационная) */
+    /* Стили для кнопки "Я участвую" (правая, информационная) */
     .book-btn.info-action {
       background: transparent;
       border: 1px solid var(--border-color);
-      color: var(--text-secondary); /* Серый текст, но читаемый */
-      opacity: 0.7;
+      color: var(--text-secondary); /* Серый текст */
+      opacity: 0.6; /* Немного прозрачнее */
       cursor: default;
     }
+    /* Убираем hover эффект для информационной кнопки */
+    .book-btn.info-action:hover {
+      background: transparent;
+      border-color: var(--border-color);
+    }
 
-    /* Контейнер для анимации пыли (оставляем без изменений) */
+    /* Контейнер для анимации пыли */
     .dust-container {
       position: absolute;
       top: 0;
@@ -420,61 +429,7 @@
       z-index: 10;
       overflow: hidden;
     }
-
-    @media (max-width: 360px) {
-      .auth-card { border-radius: 20px; }
-      .brand-title { font-size: 20px; }
-      .header-title { font-size: 18px; }
-      .header-nickname { font-size: 12px; padding: 6px 10px; }
-    }
-
-    @media (min-width: 500px) {
-      body { display: flex; justify-content: center; background: #000; }
-      .app-container, .auth-section, .db-connection-overlay { max-width: 430px; border-left: 1px solid var(--border-color); border-right: 1px solid var(--border-color); position: relative; }
-    }
-
-    /* ... существующие стили ... */
-
-/* Стили для кнопок в карточке */
-.game-actions {
-  margin-top: 8px;
-  display: flex;
-  justify-content: center;
-  gap: 10px; /* Расстояние между кнопками */
-}
-
-/* Стили для кнопки "Я не приду" */
-.book-btn.cancel {
-  background: transparent;
-  border: 1px solid var(--text-muted);
-  color: var(--text-secondary);
-}
-
-.book-btn.cancel:hover {
-  border-color: var(--accent);
-  color: var(--accent);
-}
-
-/* Стили для неактивной кнопки "Я участвую" */
-.book-btn.info {
-  background: transparent;
-  border: 1px solid var(--accent);
-  color: var(--accent);
-  opacity: 0.6;
-  cursor: default;
-}
-
-/* Контейнер для анимации пыли */
-.dust-container {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  pointer-events: none; /* Чтобы не перекрывать клики */
-  z-index: 10;
-  overflow: hidden;
-}
+    
   </style>
 </head>
 <body>
@@ -886,7 +841,7 @@
       }, 300);
     }
 
-        // ==========================================
+         // ==========================================
     // EVENTS PAGE RENDERING
     // ==========================================
     async function renderEventsPage() {
@@ -977,11 +932,8 @@
               html += '</div>';
             }
 
-            // --- НОВАЯ ЛОГИКА КНОПОК ---
-            // Определяем классы видимости
-            // Если участвуем: скрываем "Занять место", показываем "Я не приду" и "Я участвую"
-            // Если НЕ участвуем: показываем "Занять место", скрываем остальные
-            
+            // Логика классов видимости
+            // По умолчанию (не участвую): видна "Занять место", остальные скрыты
             const bookHidden = isParticipating ? 'hidden-placeholder' : '';
             const cancelHidden = isParticipating ? '' : 'hidden-placeholder';
             const infoHidden = isParticipating ? '' : 'hidden-placeholder';
@@ -1013,7 +965,7 @@
       }
     }
 
-    // Функция отмены записи
+    // Функция отмены записи (Я не приду)
     async function handleCancelSeat(gameId, btn) {
       if (!currentUser) return;
       
@@ -1021,6 +973,7 @@
       btn.textContent = 'Отмена...';
 
       try {
+        // Удаление записи из БД
         const { error } = await supabaseClient
           .from('poker_game_list_table_participant')
           .delete()
@@ -1028,100 +981,18 @@
 
         if (error) throw error;
 
-        // --- ИЗМЕНЕНИЕ UI БЕЗ ПЕРЕРЕНДЕРА ---
-        // Находим родительский контейнер кнопок
-        const actions = btn.parentElement;
-        const bookBtn = actions.querySelector('.book-action');
-        const infoBtn = actions.querySelector('.info-action');
-        
-        // Скрываем текущую кнопку отмены и инфо-кнопку
-        btn.classList.add('hidden-placeholder');
-        infoBtn.classList.add('hidden-placeholder');
-        
-        // Показываем кнопку "Занять место"
-        bookBtn.classList.remove('hidden-placeholder');
-        
-        // Восстанавливаем текст и состояние
-        btn.textContent = 'Я не приду';
-        btn.disabled = false;
+        // Успешная отмена - переключаем UI
+        updateUIToAvailable(btn);
 
       } catch (err) {
-        console.error(err);
+        console.error('Ошибка отмены:', err);
         alert('Ошибка отмены: ' + err.message);
         btn.textContent = 'Я не приду';
         btn.disabled = false;
       }
     }
 
-    // Обновленная функция записи
-    async function handleBookSeat(gameId, btn) {
-      if (!currentUser) return;
-      
-      btn.disabled = true;
-      btn.textContent = 'Запись...';
-
-      try {
-        const { data: tables, error: tError } = await supabaseClient
-          .from('poker_game_list_table')
-          .select('id, game_number, address, table_number, admin_name, admin_phone')
-          .eq('game_id', gameId)
-          .limit(1);
-
-        if (tError || !tables || tables.length === 0) {
-          alert('Нет доступных столов для записи');
-          btn.textContent = 'Занять место';
-          btn.disabled = false;
-          return;
-        }
-
-        const table = tables[0];
-        const { data: gameInfo } = await supabaseClient
-          .from('poker_game_list')
-          .select('game_number, address')
-          .eq('id', gameId)
-          .single();
-
-        const { error: insertError } = await supabaseClient
-          .from('poker_game_list_table_participant')
-          .insert([{
-            game_id: gameId,
-            game_number: gameInfo?.game_number,
-            address: gameInfo?.address || table.address,
-            table_id: table.id,
-            table_number: table.table_number,
-            admin_name: table.admin_name,
-            admin_phone: table.admin_phone,
-            user_nickname: currentUser.nickname,
-            status: 'в игре',
-            last_name: currentUser.last_name,
-            first_name: currentUser.first_name,
-            middle_name: currentUser.middle_name,
-            phone: currentUser.phone,
-            email: currentUser.email
-          }]);
-
-        if (insertError) {
-          if (insertError.code === '23505') {
-            alert('Вы уже записаны на это мероприятие');
-            // Даже если уже записаны, переведем интерфейс в режим "Участвую"
-            updateUIToParticipating(btn);
-          } else {
-            throw insertError;
-          }
-        } else {
-          // Успешная запись - обновляем UI
-          updateUIToParticipating(btn);
-        }
-
-      } catch (err) {
-        console.error(err);
-        alert('Ошибка записи: ' + err.message);
-        btn.textContent = 'Занять место';
-        btn.disabled = false;
-      }
-    }
-
-    // Вспомогательная функция для смены состояния кнопок
+    // Вспомогательная функция: переключение на "Участвую"
     function updateUIToParticipating(bookBtn) {
       const actions = bookBtn.parentElement;
       const cancelBtn = actions.querySelector('.cancel-action');
@@ -1129,7 +1000,7 @@
 
       // Скрываем кнопку "Занять место"
       bookBtn.classList.add('hidden-placeholder');
-      bookBtn.textContent = 'Занять место'; // Сброс текста для следующего раза
+      bookBtn.textContent = 'Занять место'; // Сброс текста
       bookBtn.disabled = false;
 
       // Показываем кнопки "Я не приду" и "Я участвую"
@@ -1137,96 +1008,22 @@
       infoBtn.classList.remove('hidden-placeholder');
     }
 
-    // Функция отмены записи
-    async function handleCancelSeat(gameId, btn) {
-      if (!currentUser) return;
+    // Вспомогательная функция: переключение на "Доступно"
+    function updateUIToAvailable(cancelBtn) {
+      const actions = cancelBtn.parentElement;
+      const bookBtn = actions.querySelector('.book-action');
+      const infoBtn = actions.querySelector('.info-action');
+
+      // Скрываем текущую кнопку и инфо-кнопку
+      cancelBtn.classList.add('hidden-placeholder');
+      infoBtn.classList.add('hidden-placeholder');
       
-      btn.disabled = true;
-      btn.textContent = 'Отмена...';
+      // Восстанавливаем текст
+      cancelBtn.textContent = 'Я не приду';
+      cancelBtn.disabled = false;
 
-      try {
-        const { error } = await supabaseClient
-          .from('poker_game_list_table_participant')
-          .delete()
-          .match({ game_id: gameId, user_nickname: currentUser.nickname });
-
-        if (error) throw error;
-
-        // Просто перерендериваем страницу для обновления состояния
-        renderEventsPage();
-
-      } catch (err) {
-        console.error(err);
-        alert('Ошибка отмены: ' + err.message);
-        btn.disabled = false;
-        btn.textContent = 'Я не приду';
-      }
-    }
-
-    // Обновленная функция записи (чтобы перерендерить страницу после успеха)
-    async function handleBookSeat(gameId, btn) {
-      if (!currentUser) return;
-      
-      btn.disabled = true;
-      btn.textContent = 'Запись...';
-
-      try {
-        const { data: tables, error: tError } = await supabaseClient
-          .from('poker_game_list_table')
-          .select('id, game_number, address, table_number, admin_name, admin_phone')
-          .eq('game_id', gameId)
-          .limit(1);
-
-        if (tError || !tables || tables.length === 0) {
-          alert('Нет доступных столов для записи');
-          btn.disabled = false;
-          btn.textContent = 'Занять место';
-          return;
-        }
-
-        const table = tables[0];
-        const { data: gameInfo } = await supabaseClient
-          .from('poker_game_list')
-          .select('game_number, address')
-          .eq('id', gameId)
-          .single();
-
-        const { error: insertError } = await supabaseClient
-          .from('poker_game_list_table_participant')
-          .insert([{
-            game_id: gameId,
-            game_number: gameInfo?.game_number,
-            address: gameInfo?.address || table.address,
-            table_id: table.id,
-            table_number: table.table_number,
-            admin_name: table.admin_name,
-            admin_phone: table.admin_phone,
-            user_nickname: currentUser.nickname,
-            status: 'в игре',
-            last_name: currentUser.last_name,
-            first_name: currentUser.first_name,
-            middle_name: currentUser.middle_name,
-            phone: currentUser.phone,
-            email: currentUser.email
-          }]);
-
-        if (insertError) {
-          if (insertError.code === '23505') {
-            alert('Вы уже записаны на это мероприятие');
-          } else {
-            throw insertError;
-          }
-        }
-        
-        // Перерендериваем страницу в любом случае (либо запись прошла, либо уже записан)
-        renderEventsPage();
-
-      } catch (err) {
-        console.error(err);
-        alert('Ошибка записи: ' + err.message);
-        btn.disabled = false;
-        btn.textContent = 'Занять место';
-      }
+      // Показываем кнопку "Занять место"
+      bookBtn.classList.remove('hidden-placeholder');
     }
 
     // ==========================================
